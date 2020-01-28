@@ -1,6 +1,6 @@
 import hashlib
 
-BUF_SIZE = 65536
+BUF_SIZE = 1024 * 1024 * 8
 
 def hash_file(filepath):
     md5 = hashlib.md5()
