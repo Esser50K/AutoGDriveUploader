@@ -1,7 +1,8 @@
 import os
 import json
+from copy import deepcopy
 from queue import Queue
-from hashutils import hash_file, hash_string
+from uploader.hashutils import hash_file, hash_string
 from concurrent.futures import ThreadPoolExecutor
 from threading import Thread, Lock
 from watchdog.events import FileSystemEventHandler
@@ -48,19 +49,16 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
             self.process_event()
 
     def process_event(self):
+        old_tree = deepcopy(self.current_tree)
         tree_analysis = self.analyze_tree()
-        new_tree = {**tree_analysis["current_tree"], **tree_analysis["old_tree"]}
-        print("deleted files:", tree_analysis["deleted_files"])
-        for k in tree_analysis["deleted_files"]:
-            del new_tree[k]
-
-        self.update_tree(new_tree)
 
         # first upload folders then files will have the folder gid to be uploaded to
-        current_tree = self.upload_folders(tree_analysis["new_folders"], new_tree)
-        self.update_tree(current_tree)
-        self.upload_files(tree_analysis["new_files"], current_tree)
-
+        self.current_tree = self.upload_folders(tree_analysis["new_folders"], tree_analysis["current_tree"])
+        self.update_tree(self.current_tree)
+        self.move_files(tree_analysis["moved_files"], tree_analysis["old_tree"], self.current_tree)
+        self.update_tree(self.current_tree)
+        self.upload_files(tree_analysis["new_files"], self.current_tree)
+        self.update_tree(self.current_tree)
 
     def add_gid(self, doc_id, gid):
         if doc_id not in self.current_tree.keys():
@@ -117,6 +115,11 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
 
             if self.current_tree[k]["pid"] != new_tree[k]["pid"]:
                 moved_files.append(k)
+                
+        # copy gids if they exist
+        for k, v in self.current_tree.items():
+            if k in new_tree.keys() and "gid" in self.current_tree[k].keys():
+                new_tree[k]["gid"] = self.current_tree[k]["gid"]
 
         return {
             "old_tree": self.current_tree,
@@ -183,3 +186,30 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
             return
             
         self.add_gid(file_id, result["id"])
+
+    def move_files(self, moved_files, old_tree, current_tree):
+        for file_id in moved_files:
+            old_doc = old_tree[file_id]
+            new_doc = current_tree[file_id]
+            print(old_doc)
+            print(new_doc)
+            print("moving file %s from %s to %s" % (old_doc["name"],
+                                                    old_tree[old_doc["pid"]]["name"],
+                                                    current_tree[new_doc["pid"]]["name"]))
+            try:
+                file_gid = old_doc["gid"]
+                file = self.service.files().get(fileId=file_gid,
+                                                fields='parents').execute()
+                old_folder_gids = ",".join(file.get('parents'))
+                new_folder_gid = current_tree[current_tree[file_id]["pid"]]["gid"]
+                file = self.service.files().update(fileId=file_gid,
+                                                   addParents=new_folder_gid,
+                                                   removeParents=old_folder_gids,
+                                                   fields='id, parents').execute()
+                print("successfuly moved file %s from %s to %s" % (old_doc["name"],
+                                                                old_tree[old_doc["pid"]]["name"],
+                                                                current_tree[new_doc["pid"]]["name"]))
+            except Exception as e:
+                print("error moving file:", old_doc)
+                print(e)
+

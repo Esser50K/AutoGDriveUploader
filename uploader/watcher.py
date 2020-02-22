@@ -29,3 +29,9 @@ class DirectoryWatcher(Thread):
         self.event_observer.join()
         self.event_handler.join()
         self.running = False
+
+    def current_tree(self):
+        return self.event_handler.current_tree
+
+    def get_next_notification(self):
+        return self.notification_queue.get()
