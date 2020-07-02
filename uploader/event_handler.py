@@ -7,9 +7,10 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import Thread, Lock
 from watchdog.events import FileSystemEventHandler
 from uploader.drive_service import DriveService
+from uploader.notification import *
 
+FILES_BLACKLIST = set([".DS_Store", "__Sync__"])
 
-FILES_BLACKLIST = set([".DS_Store"])
 
 def folder_doc(id, pid, name):
     return {"id": id,
@@ -17,24 +18,30 @@ def folder_doc(id, pid, name):
             "name": name,
             "folder": True}
 
-def file_doc(id, pid, name, path):
+
+def file_doc(id, pid, name, path, last_modified):
     return {"id": id,
             "pid": pid,
             "name": name,
             "folder": False,
+            "last_modified": last_modified,
             "path": path}
 
+
 class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
-    def __init__(self, base_folder_gid, root_path, notification_queue):
+    def __init__(self, base_folder_gid, root_path, notification_queue: Queue):
         self.base_folder_gid = base_folder_gid
         self.root_path = root_path
         self.notification_queue = notification_queue
-        self.last_tree_id_file = hash_string(root_path.encode("utf-8")) + "_last.json"
+        self.last_tree_id_file = hash_string(
+            root_path.encode("utf-8")) + "_last.json"
         self.current_tree = self.load_last_tree()
         self.event_queue = Queue()
         self.uploader = ThreadPoolExecutor(max_workers=10)
         self.service = DriveService()
         self.tree_lock = Lock()
+        self.scheduled_for_upload = set()
+        self.broken_files = set()
         super().__init__()
 
     def on_any_event(self, event):
@@ -42,6 +49,7 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
 
     def stop(self):
         self.event_queue.put(None)
+        self.service.cancel_all()
 
     def run(self):
         # start processing queue
@@ -53,11 +61,19 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
         tree_analysis = self.analyze_tree()
 
         # first upload folders then files will have the folder gid to be uploaded to
-        self.current_tree = self.upload_folders(tree_analysis["new_folders"], tree_analysis["current_tree"])
+        self.current_tree = self.upload_folders(
+            tree_analysis["new_folders"], tree_analysis["current_tree"])
         self.update_tree(self.current_tree)
-        self.move_files(tree_analysis["moved_files"], tree_analysis["old_tree"], self.current_tree)
+        self.move_files(tree_analysis["moved_files"],
+                        tree_analysis["old_tree"], self.current_tree)
         self.update_tree(self.current_tree)
-        self.upload_files(tree_analysis["new_files"], self.current_tree)
+
+        to_upload = {*tree_analysis["new_files"],
+                     *tree_analysis["modified_files"],
+                     *tree_analysis["still_not_uploaded_files"]}
+        to_upload -= self.scheduled_for_upload
+        self.scheduled_for_upload = {*self.scheduled_for_upload, *to_upload}
+        self.upload_files(to_upload, self.current_tree)
         self.update_tree(self.current_tree)
 
     def add_gid(self, doc_id, gid):
@@ -78,29 +94,40 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
         with open(self.last_tree_id_file, "w") as lt:
             lt.write(json.dumps(tree, indent=4))
 
-    def analyze_tree(self):
+    def get_tree(self, path):
         new_tree = {}
         for root, dirs, files in os.walk(self.root_path):
             try:
                 folder_id = hash_string(os.path.abspath(root).encode("utf-8"))
-                folder_path = "/".join(root.split(os.sep)[:-1])
+                folder_path = os.sep.join(root.split(os.sep)[:-1])
                 parent_id = hash_string(folder_path.encode("utf-8"))
                 folder_name = root.split(os.sep)[-1]
-                new_tree[folder_id] = folder_doc(folder_id, parent_id, folder_name)
+                new_tree[folder_id] = folder_doc(
+                    folder_id, parent_id, folder_name)
 
                 for filename in files:
                     if filename in FILES_BLACKLIST:
                         continue
 
                     try:
-                        file_id = os.stat(root + os.sep + filename).st_ino
                         file_path = folder_path + "/" + folder_name + "/" + filename
-                        new_tree[str(file_id)] = file_doc(file_id, folder_id, filename, file_path)
+                        if file_path in self.broken_files:
+                            continue
+
+                        stats = os.stat(file_path.encode("utf-8"))
+                        file_id = stats.st_ino
+                        last_modified = stats.st_mtime
+                        new_tree[str(file_id)] = file_doc(
+                            file_id, folder_id, filename, file_path, last_modified)
                     except Exception as e:
                         print("error on getting info for file:", e)
+                        self.broken_files.add(file_path)
             except Exception as e:
                 print("error while walking through tree:", e)
+        return new_tree
 
+    def analyze_tree(self):
+        new_tree = self.get_tree(self.root_path)
         new_files = new_tree.keys() - self.current_tree.keys()
         deleted_files = self.current_tree.keys() - new_tree.keys()
         new_folders = set([f for f in new_files if new_tree[f]["folder"]])
@@ -109,13 +136,22 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
 
         renamed_files = []
         moved_files = []
+        modified_files = []
+        still_not_uploaded_files = []
         for k in still_old:
             if self.current_tree[k]["name"] != new_tree[k]["name"]:
                 renamed_files.append(k)
 
             if self.current_tree[k]["pid"] != new_tree[k]["pid"]:
                 moved_files.append(k)
-                
+
+            if "last_modified" in self.current_tree[k].keys() and \
+               int(self.current_tree[k]["last_modified"]) != int(new_tree[k]["last_modified"]):
+                modified_files.append(k)
+
+            if "gid" not in self.current_tree[k]:
+                still_not_uploaded_files.append(k)
+
         # copy gids if they exist
         for k, v in self.current_tree.items():
             if k in new_tree.keys() and "gid" in self.current_tree[k].keys():
@@ -128,7 +164,9 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
             "new_files": new_files,
             "renamed_files": renamed_files,
             "moved_files": moved_files,
-            "deleted_files": deleted_files
+            "modified_files": modified_files,
+            "deleted_files": deleted_files,
+            "still_not_uploaded_files": still_not_uploaded_files
         }
 
     def load_last_tree(self):
@@ -145,27 +183,30 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
         if "gid" in folder_doc.keys():
             return folder_doc["gid"]
 
-        # if the parent folder id is not in the 
+        # if the parent folder id is not in the
         # current tree it means it's in the root of the project
         # so we can upload it directly
         if folder_pid not in current_tree.keys() and "gid" not in folder_doc.keys():
             print("uploading folder %s to root" % folder_doc["name"])
-            result = self.service.upload_folder(folder_doc["name"], self.base_folder_gid)
+            result = self.service.upload_folder(
+                folder_doc["name"], self.base_folder_gid)
             return result["id"]
 
         if folder_pid in current_tree.keys() and "gid" not in current_tree[folder_pid].keys():
-            gid = _upload_folders(self.base_folder_gid, current_tree[folder_pid], current_tree)
+            gid = self._upload_folders(current_tree[folder_pid], current_tree)
             current_tree[folder_pid]["gid"] = gid
 
-        print("uploading '%s' to '%s' with GID %s" % (folder_doc["name"], current_tree[folder_pid]["name"], current_tree[folder_pid]["gid"]))
-        result = self.service.upload_folder(folder_doc["name"], current_tree[folder_pid]["gid"])
+        print("uploading '%s' to '%s' with GID %s" % (
+            folder_doc["name"], current_tree[folder_pid]["name"], current_tree[folder_pid]["gid"]))
+        result = self.service.upload_folder(
+            folder_doc["name"], current_tree[folder_pid]["gid"])
         return result["id"]
 
     def upload_folders(self, new_folder_ids, new_tree):
         for folder_id in new_folder_ids:
-            folder_doc = current_tree[folder_id]
+            folder_doc = new_tree[folder_id]
             print("trying upload for %s" % folder_doc["name"])
-            folder_doc["gid"] = _upload_folders(self.base_folder_gid, folder_doc, new_tree)
+            folder_doc["gid"] = self._upload_folders(folder_doc, new_tree)
             new_tree[folder_id] = folder_doc
         return new_tree
 
@@ -178,38 +219,66 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
     def upload_file_job(self, file_id, current_tree):
         file_doc = current_tree[file_id]
         folder_doc = current_tree[file_doc["pid"]]
-        print("uploading file %s to folder %s" % (file_doc["name"], folder_doc["name"]))
+        print("uploading file %s to folder %s" %
+              (file_doc["name"], folder_doc["name"]))
+        is_update = False
         try:
-            result = self.service.upload_file(file_doc["name"], file_doc["path"], folder_doc["gid"])
+            progress_queue = Queue()
+
+            def notify_progress():
+                status = progress_queue.get()
+                while status:
+                    self.notification_queue.put(
+                        FileUploadProgressNotification(
+                            deepcopy(file_doc),
+                            status["progress"],
+                            status["in_failure"]),
+                        False)
+                    status = progress_queue.get()
+
+            Thread(target=notify_progress).start()
+            file_gid = file_doc["gid"] if "gid" in file_doc.keys() else None
+            is_update = True if file_gid else False
+            result = self.service.upload_file(file_id, file_doc["name"], file_doc["path"],
+                                              file_gid, folder_doc["gid"], progress_queue=progress_queue)
+            print("Upload of %s Complete!" % file_doc["name"])
         except Exception as e:
-            print("unrecoverable error uploading file %s:" % file_doc["name"], e)
+            print("unrecoverable error uploading file %s:" %
+                  file_doc["name"], e)
             return
-            
+
+        if not result:
+            print("upload job canceled for %s" % file_doc["name"])
+            return
+
+        notification = FileUpdatedNotification(deepcopy(file_doc)) \
+            if is_update else FileCreatedNotification(deepcopy(file_doc))
+        self.notification_queue.put(
+            FileCreatedNotification(deepcopy(file_doc)), False)
         self.add_gid(file_id, result["id"])
 
     def move_files(self, moved_files, old_tree, current_tree):
         for file_id in moved_files:
             old_doc = old_tree[file_id]
             new_doc = current_tree[file_id]
-            print(old_doc)
-            print(new_doc)
             print("moving file %s from %s to %s" % (old_doc["name"],
-                                                    old_tree[old_doc["pid"]]["name"],
+                                                    old_tree[old_doc["pid"]
+                                                             ]["name"],
                                                     current_tree[new_doc["pid"]]["name"]))
             try:
-                file_gid = old_doc["gid"]
-                file = self.service.files().get(fileId=file_gid,
-                                                fields='parents').execute()
-                old_folder_gids = ",".join(file.get('parents'))
-                new_folder_gid = current_tree[current_tree[file_id]["pid"]]["gid"]
-                file = self.service.files().update(fileId=file_gid,
-                                                   addParents=new_folder_gid,
-                                                   removeParents=old_folder_gids,
-                                                   fields='id, parents').execute()
+                self.service.move_file(deepcopy(old_doc), deepcopy(new_doc),
+                                       deepcopy(old_tree), deepcopy(current_tree))
                 print("successfuly moved file %s from %s to %s" % (old_doc["name"],
-                                                                old_tree[old_doc["pid"]]["name"],
-                                                                current_tree[new_doc["pid"]]["name"]))
+                                                                   old_tree[old_doc["pid"]
+                                                                            ]["name"],
+                                                                   current_tree[new_doc["pid"]]["name"]))
+                self.notification_queue.put(FileMovedNotification(deepcopy(new_doc),
+                                                                  deepcopy(
+                                                                      old_tree[old_doc["pid"]]),
+                                                                  deepcopy(current_tree[new_doc["pid"]])), False)
             except Exception as e:
                 print("error moving file:", old_doc)
                 print(e)
 
+    def cancel_upload(self, file_id):
+        self.service.cancel(file_id)

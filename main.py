@@ -1,11 +1,13 @@
+import asyncio
 import os
 import json
 from queue import Queue
 from uploader.event_handler import DirectoryChangeEventHandler
 from uploader.watcher import DirectoryWatcher
 from uploader.drive_service import DriveService, get_credentials
+from uploader.server import UploaderInfoServer
 from time import sleep
-
+from threading import Thread
 
 BASE_FOLDER = "Esser50kMacBackup"
 BASE_FOLDER_GID_FILE = "base_id.json"
@@ -15,7 +17,7 @@ def get_base_folder_id():
     # Create base folder if it does not exist yet
     folder_id = ""
     if BASE_FOLDER_GID_FILE not in os.listdir("."):
-        folder_id = upload_folder(service, BASE_FOLDER)
+        folder_id = DriveService().upload_folder(BASE_FOLDER)
         with open(BASE_FOLDER_GID_FILE, "w") as base_file:
             base_file.write(json.dumps({"name": BASE_FOLDER,
                                         "id": folder_id["id"]}))
@@ -26,18 +28,28 @@ def get_base_folder_id():
 
     return folder_id
 
-ROOT_PATH = "/Users/esser420/Youtubing"
+
+#ROOT_PATH = "/Users/esser420/Youtubing"
+ROOT_PATH = "/Users/esser420/Pictures/GoPro"
 
 if __name__ == "__main__":
-    notification_queue = Queue()
-    base_gid = get_base_folder_id()
+    try:
+        loop = asyncio.get_event_loop()
+        notification_queue = Queue()
+        creds = get_credentials()
+        DriveService(creds)  # initiate thread-safe drive service singleton
 
-    creds = get_credentials()
-    DriveService(creds)  # initiate thread-safe drive service singleton
+        base_gid = get_base_folder_id()
 
-    dw = DirectoryWatcher(base_gid, ROOT_PATH, notification_queue)
-    dw.start()
-
-    input()
-
-    dw.stop()
+        directory_watcher = DirectoryWatcher(
+            base_gid, ROOT_PATH, notification_queue)
+        server = UploaderInfoServer("localhost", 6900, directory_watcher, loop)
+        server.start()
+        directory_watcher.event_handler.process_event()
+        loop.run_until_complete(server.server_start)
+        loop.run_forever()
+    except Exception as e:
+        print("Got interrupted by:", e)
+        server.stop()
+    except KeyboardInterrupt:
+        server.stop()
