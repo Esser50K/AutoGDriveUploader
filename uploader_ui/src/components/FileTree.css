@@ -1,0 +1,66 @@
+.root-folder {
+  list-style-type: none;
+  padding-left: 0px;
+}
+
+.slide-open {
+  transition: all 0.4s ease-out;
+  opacity: 0;
+}
+
+.non-root-folder {
+  list-style-type: none;
+  padding-left: 20px;
+
+  transition: all 0.4s ease-out;
+  opacity: 0;
+}
+
+.non-root-folder.show {
+  opacity: 1;
+}
+
+.node-container {
+  margin: 5px 0;
+}
+
+.node {
+  /*border: 1px solid #000000;
+  background: lightblue;*/
+  display: flex;
+}
+
+.folder-node {
+}
+
+.file-node {
+}
+
+.node-content {
+  display: flex;
+  margin: 5px 0;
+}
+
+.node-content-title-line {
+  display: flex;
+}
+
+.node-content-status-line {
+  display: flex;
+}
+
+.node-element {
+  padding: 0 5px;
+}
+
+.node-title {
+  font-size: 15px;
+}
+
+.node-upload-status {
+}
+
+.open-folder-icon {
+  background-color: url("%PUBLIC_URL%/open-folder.png");
+  width: 50px;
+}
