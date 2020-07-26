@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { FileTreeNodeModel } from "../models/filetree";
 import "./FileTree.css";
+import { abbreviateSize } from "../utils/filetree";
 
 interface FileTreeProps {
   treeNode: FileTreeNodeModel;
@@ -27,9 +28,11 @@ const FileTreeFile = (props: FileTreeProps) => {
             <div className="node-element node-upload-status">
               {"UPLOADED: " + (props.treeNode.gid !== undefined)}
             </div>
-            <div className="node-element node-last-modified">
-              {"LAST MOD: " + props.treeNode.last_modified}
-            </div>
+            {props.treeNode.size && (
+              <div className="node-element node-last-modified">
+                {"SIZE: " + abbreviateSize(props.treeNode.size)}
+              </div>
+            )}
           </div>
         </div>
       </li>

@@ -1,28 +1,43 @@
 import React, { useEffect, useState, MouseEvent } from "react";
-import { FileTreeNodeModel, FileTreeModel } from "../models/filetree";
+import {
+  FileTreeNodeModel,
+  FileTreeModel,
+  RemoteFileTreeModel,
+} from "../models/filetree";
 import { findChildren } from "../utils/filetree";
 import FileTreeFile from "./FileTreeFile";
 import "./FileTree.css";
+import { useRecoilState } from "recoil";
+import { nodesState } from "../states/filetree";
 
 interface FileTreeProps {
   treeNode: FileTreeNodeModel;
   fullTree: FileTreeModel;
-  isOpen?: boolean;
+  uploadStatusTree: FileTreeModel; // not really file tree model
+  remoteTree: RemoteFileTreeModel;
 }
 
 const FileTreeFolder = (props: FileTreeProps) => {
-  const isOpen = props.isOpen !== undefined ? props.isOpen : false;
-  const [open, setOpen] = useState(isOpen);
+  const [currentNodesState, setNodesState] = useRecoilState(nodesState);
 
   const onClick = (event: MouseEvent<HTMLLIElement, globalThis.MouseEvent>) => {
     event.preventDefault();
     event.stopPropagation();
-    setOpen(!open);
+    setNodesState((oldNodesState) => {
+      const newNodesState = { ...oldNodesState };
+      const newCurrentNodeState = { ...oldNodesState[props.treeNode.id] };
+      newCurrentNodeState.open = !newCurrentNodeState.open;
+      newNodesState[props.treeNode.id] = newCurrentNodeState;
+      return newNodesState;
+    });
   };
 
-  const childrenCss = open ? "non-root-folder show" : "non-root-folder";
-  const children = open ? findChildren(props.treeNode.id, props.fullTree) : [];
-  const imageUrl = open ? "open-folder.png" : "closed-folder.png";
+  const isOpen = currentNodesState[props.treeNode.id]?.open;
+  const childrenCss = isOpen ? "non-root-folder show" : "non-root-folder";
+  const children = isOpen
+    ? findChildren(props.treeNode.id, props.fullTree)
+    : [];
+  const imageUrl = isOpen ? "open-folder.png" : "closed-folder.png";
   return (
     <div className="node-container folder-container">
       <li
@@ -54,6 +69,8 @@ const FileTreeFolder = (props: FileTreeProps) => {
             <FileTreeFolder
               treeNode={node}
               fullTree={props.fullTree}
+              remoteTree={props.remoteTree}
+              uploadStatusTree={props.uploadStatusTree}
             ></FileTreeFolder>
           ) : (
             <FileTreeFile treeNode={node}></FileTreeFile>

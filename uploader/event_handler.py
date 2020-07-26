@@ -1,5 +1,6 @@
 import os
 import json
+from time import time
 from copy import deepcopy
 from queue import Queue
 from uploader.hashutils import hash_file, hash_string
@@ -10,6 +11,7 @@ from uploader.drive_service import DriveService
 from uploader.notification import *
 
 FILES_BLACKLIST = set([".DS_Store", "__Sync__"])
+PREFIX_BLACKLIST = set([".tmp"])
 
 
 def folder_doc(id, pid, name):
@@ -19,12 +21,13 @@ def folder_doc(id, pid, name):
             "folder": True}
 
 
-def file_doc(id, pid, name, path, last_modified):
+def file_doc(id, pid, name, path, size, last_modified):
     return {"id": id,
             "pid": pid,
             "name": name,
             "folder": False,
             "last_modified": last_modified,
+            "size": size,
             "path": path}
 
 
@@ -91,8 +94,22 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
             self.save_tree(tree)
 
     def save_tree(self, tree):
-        with open(self.last_tree_id_file, "w") as lt:
+        temp_file_name = hash_string(
+            ("%s_%s" % (self.root_path, str(int(time())))).encode("utf-8")) + ".json"
+        with open(temp_file_name, "w") as lt:
             lt.write(json.dumps(tree, indent=4))
+
+        os.replace(temp_file_name, self.last_tree_id_file)
+
+    def check_blacklists(self, filename):
+        if filename in FILES_BLACKLIST:
+            return True
+
+        for prefix in PREFIX_BLACKLIST:
+            if filename.startswith(prefix):
+                return True
+
+        return False
 
     def get_tree(self, path):
         new_tree = {}
@@ -106,7 +123,7 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
                     folder_id, parent_id, folder_name)
 
                 for filename in files:
-                    if filename in FILES_BLACKLIST:
+                    if self.check_blacklists(filename):
                         continue
 
                     try:
@@ -117,8 +134,9 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
                         stats = os.stat(file_path.encode("utf-8"))
                         file_id = stats.st_ino
                         last_modified = stats.st_mtime
+                        file_size = stats.st_size
                         new_tree[str(file_id)] = file_doc(
-                            file_id, folder_id, filename, file_path, last_modified)
+                            file_id, folder_id, filename, file_path, file_size, last_modified)
                     except Exception as e:
                         print("error on getting info for file:", e)
                         self.broken_files.add(file_path)
@@ -251,8 +269,6 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
             print("upload job canceled for %s" % file_doc["name"])
             return
 
-        notification = FileUpdatedNotification(deepcopy(file_doc)) \
-            if is_update else FileCreatedNotification(deepcopy(file_doc))
         self.notification_queue.put(
             FileCreatedNotification(deepcopy(file_doc)), False)
         self.add_gid(file_id, result["id"])

@@ -25,9 +25,10 @@
 }
 
 .node {
-  /*border: 1px solid #000000;
-  background: lightblue;*/
   display: flex;
+  background: aliceblue;
+  padding: 5px;
+  border-radius: 5px;
 }
 
 .folder-node {
