@@ -29,27 +29,34 @@ def get_base_folder_id():
     return folder_id
 
 
-#ROOT_PATH = "/Users/esser420/Youtubing"
-ROOT_PATH = "/Users/esser420/Pictures/GoPro"
+ROOT_PATH = "/Users/esser420/Youtubing"
+#ROOT_PATH = "/Users/esser420/Pictures/GoPro"
 
 if __name__ == "__main__":
     try:
         loop = asyncio.get_event_loop()
         notification_queue = Queue()
         creds = get_credentials()
-        DriveService(creds)  # initiate thread-safe drive service singleton
-
         base_gid = get_base_folder_id()
+
+        # initiate thread-safe drive service singleton
+        driveService = DriveService(creds)
+        remote_file_sync_notifications = Queue()
+        remote_file_syncer = Thread(
+            target=driveService.list_folder_deep, args=(base_gid, remote_file_sync_notifications))
+        remote_file_syncer.daemon = True
+        remote_file_syncer.start()
 
         directory_watcher = DirectoryWatcher(
             base_gid, ROOT_PATH, notification_queue)
-        server = UploaderInfoServer("localhost", 6900, directory_watcher, loop)
+        server = UploaderInfoServer(
+            "localhost", 6900, directory_watcher, remote_file_sync_notifications, loop)
         server.start()
         directory_watcher.event_handler.process_event()
         loop.run_until_complete(server.server_start)
         loop.run_forever()
     except Exception as e:
-        print("Got interrupted by:", e)
+        print("Got interrupted by:", e.with_traceback())
         server.stop()
     except KeyboardInterrupt:
         server.stop()

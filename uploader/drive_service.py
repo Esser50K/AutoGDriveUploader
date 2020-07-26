@@ -2,14 +2,18 @@ import apiclient
 import os
 import pickle
 import time
+import json
 from copy import deepcopy
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build, MediaFileUpload, HttpError
 from google_auth_oauthlib.flow import InstalledAppFlow
 from queue import Queue
+from uploader.notification import RemoteScanNotification
 
 FOLDER_MIMETYPE = "application/vnd.google-apps.folder"
-SCOPES = ['https://www.googleapis.com/auth/drive'] # If modifying these scopes, delete the file token.pickle.
+# If modifying these scopes, delete the file token.pickle.
+SCOPES = ['https://www.googleapis.com/auth/drive']
+
 
 def get_credentials():
     creds = None
@@ -33,28 +37,67 @@ def get_credentials():
 
     return creds
 
+
 def build_request(http, *args, **kwargs):
     return apiclient.http.HttpRequest(deepcopy(http), *args, **kwargs)
+
 
 class DriveService:
     instance = None
 
     def __init__(self, creds=None):
         if not DriveService.instance:
-            DriveService.instance = build('drive', 'v3', credentials=creds, requestBuilder=build_request)
-        
+            DriveService.instance = build(
+                'drive', 'v3', credentials=creds, requestBuilder=build_request)
+
         self.cancel_uploads = {}
+
+    def list_folder_deep(self, folder_gid, notification_queue=Queue(), depth=9999, all_items={}):
+        last_remote_scan_file = folder_gid + "_scan.json"
+        if os.path.isfile(last_remote_scan_file):
+            with open(last_remote_scan_file, "r") as last_scan:
+                all_items = json.loads(last_scan.read())
+
+        return self._list_folder_deep(folder_gid, last_remote_scan_file, notification_queue, depth, all_items)
+
+    def _list_folder_deep(self, folder_gid, filename, notification_queue=Queue(), depth=9999, all_items={}):
+        if depth == 0:
+            return self._write_and_notify(filename, all_items)
+
+        depth -= 1
+        for item in self.list_folder_items(folder_gid):
+            item["gpid"] = folder_gid
+            all_items[item["id"]] = item
+            if item["mimeType"] == FOLDER_MIMETYPE:
+                all_items = self._list_folder_deep(
+                    item["id"], filename, notification_queue, depth, all_items)
+
+        return self._write_and_notify(filename, all_items)
+
+    def _write_and_notify(self, filename, items, notification_queue=Queue()):
+        temp_file_name = ("%s_%s" % (filename, str(
+            int(time.time())))).encode("utf-8") + ".json"
+        with open(temp_file_name, "w") as lt:
+            lt.write(json.dumps(items, indent=4))
+
+        os.replace(temp_file_name, filename)
+        notification_queue.put(RemoteScanNotification(items))
+        return items
+
+    def list_folder_items(self, folder_gid):
+        return self.files().list(pageSize=1000, q="'%s' in parents" %
+                                 folder_gid).execute()["files"]
 
     def upload_folder(self, folder_name, parent_gid=None):
         folder_metadata = {'name': folder_name,
                            'mimeType': FOLDER_MIMETYPE}
         if parent_gid:
             folder_metadata['parents'] = [parent_gid]
-        
+
         return self.files().create(body=folder_metadata, fields="id").execute()
 
     def upload_file(self, file_id, file_name, file_path,
-                    file_gid=None, parent_gid=None, progress_queue = Queue()):
+                    file_gid=None, parent_gid=None, progress_queue=Queue()):
         self.cancel_uploads[file_id] = False
         file_metadata = {'name': file_name}
         if parent_gid and not file_gid:
@@ -97,7 +140,8 @@ class DriveService:
                 status, response = file.next_chunk()
                 if status:
                     progress = status.progress()
-                    print("Uploaded %d%% of %s." % (int(progress * 100), file_name))
+                    print("Uploaded %d%% of %s." %
+                          (int(progress * 100), file_name))
                     progress_queue.put({"progress": progress,
                                         "in_failure": False})
             except Exception as e:
@@ -107,7 +151,7 @@ class DriveService:
                 time.sleep(.5)
                 if type(e) is HttpError:
                     media = MediaFileUpload(file_path,
-                                        resumable=True)
+                                            resumable=True)
                     file = self.files().create(
                         body=file_metadata,
                         media_body=media,

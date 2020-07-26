@@ -6,6 +6,7 @@ export type FileTreeNodeModel = {
   folder: boolean;
   last_modified?: number;
   path?: string;
+  size?: number;
 
   // display attributes (to change)
   active?: boolean;
@@ -15,4 +16,14 @@ export type FileTreeNodeModel = {
 
 export type FileTreeModel = {
   [key: string]: FileTreeNodeModel;
+};
+
+export type RemoteFileTreeNodeModel = {
+  id: string;
+  gpid: string;
+  name: string;
+};
+
+export type RemoteFileTreeModel = {
+  [key: string]: RemoteFileTreeNodeModel;
 };
