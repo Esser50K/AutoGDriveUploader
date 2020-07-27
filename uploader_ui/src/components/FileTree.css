@@ -26,9 +26,21 @@
 
 .node {
   display: flex;
-  background: aliceblue;
   padding: 5px;
   border-radius: 5px;
+}
+
+.node-color-remote {
+  transition: all 0.4s ease-out;
+  background: lightgreen;
+}
+.node-color-local {
+  transition: all 0.4s ease-out;
+  background: lightcoral;
+}
+.node-color-both {
+  transition: all 0.4s ease-out;
+  background: aliceblue;
 }
 
 .folder-node {

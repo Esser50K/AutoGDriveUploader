@@ -65,18 +65,28 @@ class DriveService:
             return self._write_and_notify(filename, all_items)
 
         depth -= 1
-        for item in self.list_folder_items(folder_gid):
+
+        folder_items = []
+        try:
+            folder_items = self.list_folder_items(folder_gid)
+        except Exception as e:
+            print("Error occurred trying to list items of:", folder_gid, e)
+
+        for item in folder_items:
+            if "kind" in item:
+                del item["kind"]
+
             item["gpid"] = folder_gid
             all_items[item["id"]] = item
             if item["mimeType"] == FOLDER_MIMETYPE:
                 all_items = self._list_folder_deep(
                     item["id"], filename, notification_queue, depth, all_items)
 
-        return self._write_and_notify(filename, all_items)
+        return self._write_and_notify(filename, all_items, notification_queue)
 
     def _write_and_notify(self, filename, items, notification_queue=Queue()):
         temp_file_name = ("%s_%s" % (filename, str(
-            int(time.time())))).encode("utf-8") + ".json"
+            int(time.time())))) + ".json"
         with open(temp_file_name, "w") as lt:
             lt.write(json.dumps(items, indent=4))
 

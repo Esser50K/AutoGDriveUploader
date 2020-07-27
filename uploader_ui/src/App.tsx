@@ -1,17 +1,12 @@
 import React from "react";
-import FileTree from "./components/FileTree";
 import "./App.css";
 import { RecoilRoot } from "recoil";
+import FileTreePage from "./pages/FileTreePage";
 
 const App = () => {
   return (
     <RecoilRoot>
-      <div className="app">
-        <h1>Uploader UI</h1>
-        <div className="filetree-container">
-          <FileTree></FileTree>
-        </div>
-      </div>
+      <FileTreePage></FileTreePage>
     </RecoilRoot>
   );
 };

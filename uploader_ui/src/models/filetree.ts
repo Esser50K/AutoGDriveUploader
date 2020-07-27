@@ -1,7 +1,8 @@
 export type FileTreeNodeModel = {
   id: string;
   pid: string;
-  gid: string;
+  gid?: string;
+  gpid?: string;
   name: string;
   folder: boolean;
   last_modified?: number;
@@ -22,6 +23,7 @@ export type RemoteFileTreeNodeModel = {
   id: string;
   gpid: string;
   name: string;
+  mimeType: string;
 };
 
 export type RemoteFileTreeModel = {
