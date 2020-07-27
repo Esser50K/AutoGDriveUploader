@@ -4,7 +4,7 @@ from queue import Queue
 from uploader.notification import *
 from uploader.watcher import DirectoryWatcher
 from websockets import WebSocketServerProtocol as WS, serve
-from threading import Thread
+from threading import Thread, Lock
 from time import sleep
 
 
@@ -22,13 +22,16 @@ class UploaderInfoServer:
         self.remote_tree_status_clients = {}
         self.file_notification_getter = None
         self.remote_notification_getter = None
+        self.notification_lock = Lock()
 
     async def root_handler(self, websocket: WS, uri: str):
         if uri.endswith("/full"):
-            self.full_tree_clients[websocket.remote_address] = websocket
+            with self.notification_lock:
+                self.full_tree_clients[websocket.remote_address] = websocket
             await websocket.send(json.dumps(self.watcher.current_tree()))
         elif uri.endswith("/status"):
-            self.tree_status_clients[websocket.remote_address] = websocket
+            with self.notification_lock:
+                self.tree_status_clients[websocket.remote_address] = websocket
         elif uri.endswith("/remote"):
             self.remote_tree_status_clients[websocket.remote_address] = websocket
         else:
@@ -52,13 +55,14 @@ class UploaderInfoServer:
 
             self.parse_and_apply_notification(notification)
             print("GOT NOTIFICATION:", notification)
-            for client in self.full_tree_clients.values():
-                asyncio.run_coroutine_threadsafe(client.send(
-                    json.dumps(self.watcher.current_tree())), self.loop)
+            with self.notification_lock:
+                for client in self.full_tree_clients.values():
+                    asyncio.run_coroutine_threadsafe(client.send(
+                        json.dumps(self.watcher.current_tree())), self.loop)
 
-            for client in self.tree_status_clients.values():
-                asyncio.run_coroutine_threadsafe(client.send(
-                    json.dumps(self.current_tree_status)), self.loop)
+                for client in self.tree_status_clients.values():
+                    asyncio.run_coroutine_threadsafe(client.send(
+                        json.dumps(self.current_tree_status)), self.loop)
 
     def get_remote_notifications(self):
         while True:
@@ -66,11 +70,12 @@ class UploaderInfoServer:
             if not notification:
                 break
 
-            self.parse_and_apply_notification(notification)
+            self.parse_and_apply_remote_notification(notification)
             print("GOT REMOTE NOTIFICATION:", notification)
-            for client in self.remote_tree_status_clients.values():
-                asyncio.run_coroutine_threadsafe(client.send(
-                    json.dumps(self.remote_tree_status)), self.loop)
+            with self.notification_lock:
+                for client in self.remote_tree_status_clients.values():
+                    asyncio.run_coroutine_threadsafe(client.send(
+                        json.dumps(self.remote_tree_status)), self.loop)
 
     def parse_and_apply_notification(self, notification: Notification):
         file_id = notification.file_doc["id"]
@@ -83,19 +88,20 @@ class UploaderInfoServer:
         elif notification.type == FILE_UPLOAD_PROGRESS_NOTIFICATION:
             self.current_tree_status[file_id] = {"progress": notification.progress,
                                                  "in_failure": notification.in_failure}
-        elif notification.type == REMOTE_SCAN_NOTIFICATION:
-            self.remote_tree_status = notification.file_doc
+
+    def parse_and_apply_remote_notification(self, notification: RemoteScanNotification):
+        self.remote_tree_status = notification.remote_files
 
     def start(self):
         self.file_notification_getter = Thread(
             target=self.get_file_notifications)
         self.file_notification_getter.start()
-        self.file_notification_getter = Thread(
-            target=self.get_file_notifications)
-        self.file_notification_getter.start()
+        self.remote_notification_getter = Thread(
+            target=self.get_remote_notifications)
+        self.remote_notification_getter.start()
         self.watcher.start()
 
     def stop(self):
         self.watcher.stop()
         self.notification_queue.put(None)
-        self.notification_getter.join()
+        self.file_notification_getter.join()

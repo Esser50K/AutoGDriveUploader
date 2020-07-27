@@ -1,23 +1,30 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { FileTreeNodeModel } from "../models/filetree";
 import "./FileTree.css";
-import { abbreviateSize } from "../utils/filetree";
+import {
+  abbreviateSize,
+  getLocation,
+  getBackgroundColor,
+} from "../utils/filetree";
 
 interface FileTreeProps {
   treeNode: FileTreeNodeModel;
 }
 
 const FileTreeFile = (props: FileTreeProps) => {
-  const node = props.treeNode;
-
   const onClick = (event: React.MouseEvent<HTMLLIElement, MouseEvent>) => {
     event.preventDefault();
     event.stopPropagation();
   };
 
+  const location = getLocation(props.treeNode);
+  const background = getBackgroundColor(location);
   return (
     <div className="node-container file-container">
-      <li className="node file-node" onClick={(e) => onClick(e)}>
+      <li
+        className={`node file-node ${background}`}
+        onClick={(e) => onClick(e)}
+      >
         <div>
           <div className="node-content-title-line">
             <div className="node-element node-title">

@@ -42,6 +42,7 @@ class FileMovedNotification(Notification):
         self.new_folder_doc = new_folder_doc
 
 
-class RemoteScanNotification(Notification):
+class RemoteScanNotification:
     def __init__(self, remote_files):
-        super().__init__(FILE_CREATED_NOTIFICATION, remote_files)
+        self.type = REMOTE_SCAN_NOTIFICATION
+        self.remote_files = remote_files
