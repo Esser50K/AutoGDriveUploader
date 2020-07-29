@@ -32,6 +32,7 @@ class UploaderInfoServer:
         elif uri.endswith("/status"):
             with self.notification_lock:
                 self.tree_status_clients[websocket.remote_address] = websocket
+            await websocket.send(json.dumps(self.remote_tree_status))
         elif uri.endswith("/remote"):
             self.remote_tree_status_clients[websocket.remote_address] = websocket
         else:
@@ -88,6 +89,19 @@ class UploaderInfoServer:
         elif notification.type == FILE_UPLOAD_PROGRESS_NOTIFICATION:
             self.current_tree_status[file_id] = {"progress": notification.progress,
                                                  "in_failure": notification.in_failure}
+
+        filedoc = notification.file_doc
+        if notification.type == FILE_DELETED_NOTIFICATION \
+                and "gid" in filedoc.keys() \
+                and filedoc["gid"] not in self.remote_tree_status.keys():
+            current_tree = self.watcher.current_tree()
+            parent = current_tree()[
+                filedoc["pid"]] if filedoc["pid"] in current_tree() else ""
+            self.remote_tree_status[filedoc["gid"]] = {
+                "id": filedoc["gid"],
+                "name": filedoc["name"],
+                "mimeType": filedoc["mimeType"],
+                "gpid": }
 
     def parse_and_apply_remote_notification(self, notification: RemoteScanNotification):
         self.remote_tree_status = notification.remote_files

@@ -1,0 +1,101 @@
+/* overriding unwanted default styling */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box; /* makes padding and border be part of the width */
+}
+
+/* just setting default text color for everything in the navbar (default = least specific) */
+.nav-bar {
+  color: var(--soft-white);
+  border-bottom: 2px solid var(--baby-blue);
+}
+
+/* this is the container with all elements in the navbar (e.g. the first ul) */
+.nav-items {
+  background-color: var(--soft-black);
+}
+
+/* this rule is applied to every ul inside the nav-bar no matter how nested */
+.nav-bar ul {
+  list-style: none;
+  display: flex;
+}
+
+/* this rule is applied to every li that is inside any ul that is inside nav-bar (e.g. every item and subitem)
+   also the position is set to relative so we can set position:absolute in children (e.g. subitems)
+*/
+.nav-bar ul li {
+  position: relative;
+  text-align: center;
+}
+
+/* a specific li (it will also have the styles from .nav-bar ul li) */
+.nav-bar .nav-title {
+  width: 250px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--soft-black);
+  height: 80px;
+}
+
+/* all other non specific li elements(it will also have the styles from .nav-bar ul li) */
+.nav-bar .nav-item {
+  width: 100%;
+}
+
+/* flexbox just to position text in all spans of all items */
+.nav-bar .nav-item span {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  background-color: var(--soft-black);
+  padding-left: 20px;
+  font-size: 20px;
+  font-weight: bold;
+  height: 80px;
+  border-left: 2px solid var(--baby-blue);
+}
+
+.nav-bar .nav-item .dropdown-container span:hover {
+  background-color: var(--baby-blue);
+  color: var(--soft-black);
+}
+
+.nav-title span {
+  color: var(--baby-blue);
+  font-size: 40px;
+  padding: 10px 25px;
+}
+
+.nav-bar li:hover .dropdown-container li {
+  display: block;
+  transition: all 0.4s ease-out;
+}
+
+.nav-bar .dropdown-container li {
+  display: none;
+  position: relative;
+  transition: all 0.4s ease-out;
+}
+
+.dropdown-container {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.nav-bar .nav-dropdown .dropdown-title {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  font-size: 15px;
+}
+
+.nav-bar .nav-dropdown .dropdown-title .dropdown-selected {
+  margin-top: 5px;
+  font-size: 20px;
+}

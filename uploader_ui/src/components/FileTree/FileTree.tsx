@@ -5,13 +5,13 @@ import {
   FileTreeModel,
   RemoteFileTreeModel,
   FileTreeNodeModel,
-} from "../models/filetree";
+} from "../../models/filetree";
 import {
   findRootId,
   findChildrenWithMap,
   createLocalLookupTables,
   createRemoteLookupTables,
-} from "../utils/filetree";
+} from "../../utils/filetree";
 import "./FileTree.css";
 import { useRecoilState } from "recoil";
 import {
@@ -19,7 +19,7 @@ import {
   gidToNodeState,
   remoteGidToNodeState,
   remoteParentToChildrenState,
-} from "../states/filetree";
+} from "../../states/filetree";
 import debounce from "lodash/debounce";
 
 const fullTreeState = new WebSocket("ws://localhost:6900/full");
@@ -62,7 +62,6 @@ const FileTree = () => {
       parentToChildrenMap,
       remoteParentToChildren,
       gidToNodeMap);
-    console.info("NEXT:", nextChildren)
     setChildren(nextChildren);
   };
 
@@ -79,11 +78,10 @@ const FileTree = () => {
 
   useEffect(() => {
     fullTreeState.onmessage = (message: MessageEvent) => {
-      console.info("GOT FULL TREE MESSAGE");
       parseAndApplyLocal(message.data);
     };
 
-    const parseAndApplyRemoteDebounced = debounce(parseAndApplyRemote, 1000);
+    const parseAndApplyRemoteDebounced = debounce(parseAndApplyRemote, 200);
     remoteTreeState.onmessage = (message: MessageEvent) => {
       parseAndApplyRemoteDebounced(message.data);
     };

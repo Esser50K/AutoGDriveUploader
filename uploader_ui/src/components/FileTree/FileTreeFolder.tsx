@@ -3,7 +3,7 @@ import {
   FileTreeNodeModel,
   FileTreeModel,
   RemoteFileTreeModel,
-} from "../models/filetree";
+} from "../../models/filetree";
 import {
   findChildren,
   findRemoteChildren,
@@ -11,7 +11,7 @@ import {
   getBackgroundColor,
   remoteToLocal,
   findChildrenWithMap,
-} from "../utils/filetree";
+} from "../../utils/filetree";
 import FileTreeFile from "./FileTreeFile";
 import "./FileTree.css";
 import { useRecoilState } from "recoil";
@@ -21,7 +21,7 @@ import {
   gidToNodeState,
   remoteGidToNodeState,
   remoteParentToChildrenState,
-} from "../states/filetree";
+} from "../../states/filetree";
 
 interface FileTreeProps {
   treeNode: FileTreeNodeModel;

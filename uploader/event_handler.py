@@ -48,6 +48,7 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
         super().__init__()
 
     def on_any_event(self, event):
+        print("EVENT YO")
         self.event_queue.put(event)
 
     def stop(self):
@@ -55,9 +56,15 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
         self.service.cancel_all()
 
     def run(self):
-        # start processing queue
-        while self.event_queue.get() is not None:
-            self.process_event()
+        # processes queue but debounces the changes since it always goes over the whole tree
+        while True:
+            try:
+                self.event_queue.get(timeout=2)
+            except:
+                print("processing event")
+                self.process_event()
+                if self.event_queue.get() is None:
+                    break
 
     def process_event(self):
         old_tree = deepcopy(self.current_tree)
@@ -78,6 +85,10 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
         self.scheduled_for_upload = {*self.scheduled_for_upload, *to_upload}
         self.upload_files(to_upload, self.current_tree)
         self.update_tree(self.current_tree)
+
+        for file_id in tree_analysis["deleted_files"]:
+            self.notification_queue.put(
+                FileDeletedNotification(old_tree[file_id]))
 
     def add_gid(self, doc_id, gid):
         if doc_id not in self.current_tree.keys():

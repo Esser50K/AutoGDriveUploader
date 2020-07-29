@@ -4,7 +4,7 @@ import {
   RemoteFileTreeModel,
   RemoteFileTreeNodeModel,
 } from "../models/filetree";
-import { FileLocation } from "../components/consts";
+import { FileLocation } from "../components/FileTree/consts";
 
 const FOLDER_MIMETYPE = "application/vnd.google-apps.folder";
 
@@ -121,7 +121,6 @@ export const createRemoteLookupTables = (
     children[node.gpid].push(node.id);
   }
 
-  console.info(children);
   return [children, gidNodes];
 };
 
