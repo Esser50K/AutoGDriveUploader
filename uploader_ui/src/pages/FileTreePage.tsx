@@ -1,13 +1,12 @@
 import React from "react";
-import FileTree from "../components/FileTree";
+import FileTree from "../components/FileTree/FileTree";
 import "./FileTreePage.css";
+import NavBar from "../components/NavBar/NavBar";
 
 const FileTreePage = () => {
     return (
         <div className="app">
-            <div className="navbar">
-                <h1>Uploader UI</h1>
-            </div>
+            <NavBar title="UPLOADER" syncFolders={["Youtubing", "GoPro"]}></NavBar>
             <div className="filetree-container">
                 <FileTree></FileTree>
             </div>

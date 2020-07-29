@@ -1,11 +1,11 @@
 import React from "react";
-import { FileTreeNodeModel } from "../models/filetree";
+import { FileTreeNodeModel } from "../../models/filetree";
 import "./FileTree.css";
 import {
   abbreviateSize,
   getLocation,
   getBackgroundColor,
-} from "../utils/filetree";
+} from "../../utils/filetree";
 
 interface FileTreeProps {
   treeNode: FileTreeNodeModel;
