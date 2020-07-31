@@ -5,11 +5,8 @@ import {
   RemoteFileTreeModel,
 } from "../../models/filetree";
 import {
-  findChildren,
-  findRemoteChildren,
   getLocation,
   getBackgroundColor,
-  remoteToLocal,
   findChildrenWithMap,
 } from "../../utils/filetree";
 import FileTreeFile from "./FileTreeFile";
@@ -19,8 +16,8 @@ import {
   nodesState,
   parentToChildrenState,
   gidToNodeState,
-  remoteGidToNodeState,
   remoteParentToChildrenState,
+  selectedNodeState,
 } from "../../states/filetree";
 
 interface FileTreeProps {
@@ -33,6 +30,7 @@ interface FileTreeProps {
 const FileTreeFolder = (props: FileTreeProps) => {
   const [children, setChildren] = useState<FileTreeNodeModel[]>([]);
   const [currentNodesState, setNodesState] = useRecoilState(nodesState);
+  const [selectedNodeId, setSelectedNodeId] = useRecoilState(selectedNodeState);
   const [parentToChildren] = useRecoilState(parentToChildrenState);
   const [remoteParentToChildren] = useRecoilState(remoteParentToChildrenState);
   const [gidToNode] = useRecoilState(gidToNodeState);
@@ -40,10 +38,11 @@ const FileTreeFolder = (props: FileTreeProps) => {
   const onClick = (event: MouseEvent<HTMLLIElement, globalThis.MouseEvent>) => {
     event.preventDefault();
     event.stopPropagation();
+    setSelectedNodeId(() => props.treeNode.id)
     setNodesState((oldNodesState) => {
       const newNodesState = { ...oldNodesState };
       const newCurrentNodeState = { ...oldNodesState[props.treeNode.id] };
-      newCurrentNodeState.open = !newCurrentNodeState.open;
+      newCurrentNodeState.open = !newCurrentNodeState.open
       newNodesState[props.treeNode.id] = newCurrentNodeState;
       return newNodesState;
     });
@@ -51,31 +50,10 @@ const FileTreeFolder = (props: FileTreeProps) => {
 
   const location = getLocation(props.treeNode);
   const background = getBackgroundColor(location);
+  const nodeSelected = props.treeNode.id === selectedNodeId ? "node-selected" : "";
   const isOpen = currentNodesState[props.treeNode.id]?.open;
   const childrenCss = isOpen ? "non-root-folder show" : "non-root-folder";
   const imageUrl = isOpen ? "open-folder.png" : "closed-folder.png";
-
-  /*
-  const children = isOpen
-    ? findChildren(props.treeNode.id, props.fullTree)
-    : [];
-  const childrenMap: { [key: string]: FileTreeNodeModel } = {};
-  for (let child of children) {
-    childrenMap[child.id] = child;
-  }
-
-  const remoteChildren =
-    isOpen && props.treeNode.gid
-      ? findRemoteChildren(props.treeNode.gid, props.remoteTree)
-      : [];
-
-  console.info("remote CHILDREN:", remoteChildren);
-
-  for (let child of remoteChildren) {
-    const local = remoteToLocal(child, props.fullTree);
-    childrenMap[local.id] = local;
-  }
-  */
 
   useEffect(() => {
     (async () => {
@@ -94,10 +72,13 @@ const FileTreeFolder = (props: FileTreeProps) => {
     })()
   }, [isOpen, props, parentToChildren, remoteParentToChildren, gidToNode])
 
+  if (nodeSelected !== "") {
+    console.info(props.treeNode);
+  }
   return (
     <div className="node-container folder-container">
       <li
-        className={`node folder-node ${background}`}
+        className={`node folder-node ${background} ${nodeSelected}`}
         onClick={(e) => {
           onClick(e);
         }}

@@ -6,23 +6,30 @@ import {
   getLocation,
   getBackgroundColor,
 } from "../../utils/filetree";
+import { useRecoilState } from "recoil";
+import { selectedNodeState } from "../../states/filetree";
 
 interface FileTreeProps {
   treeNode: FileTreeNodeModel;
 }
 
 const FileTreeFile = (props: FileTreeProps) => {
+  const [selectedNodeId, setSelectedNodeId] = useRecoilState(selectedNodeState);
+
   const onClick = (event: React.MouseEvent<HTMLLIElement, MouseEvent>) => {
     event.preventDefault();
     event.stopPropagation();
+    setSelectedNodeId(() => props.treeNode.id)
+
   };
 
   const location = getLocation(props.treeNode);
   const background = getBackgroundColor(location);
+  const nodeSelected = props.treeNode.id === selectedNodeId ? "node-selected" : "";
   return (
     <div className="node-container file-container">
       <li
-        className={`node file-node ${background}`}
+        className={`node file-node ${background} ${nodeSelected}`}
         onClick={(e) => onClick(e)}
       >
         <div>

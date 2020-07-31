@@ -25,17 +25,24 @@
   border-radius: 5px;
 }
 
+.node.node-selected {
+  border: orangered 4px solid;
+}
+
 .node-color-remote {
   transition: all 0.4s ease-out;
   background: lightgreen;
+  border: lightgreen 4px solid;
 }
 .node-color-local {
   transition: all 0.4s ease-out;
   background: lightcoral;
+  border: lightcoral 4px solid;
 }
 .node-color-both {
   transition: all 0.4s ease-out;
   background: aliceblue;
+  border: aliceblue 4px solid;
 }
 
 .folder-node {

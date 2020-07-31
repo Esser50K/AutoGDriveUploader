@@ -10,9 +10,7 @@ export type FileTreeNodeModel = {
   size?: number;
 
   // display attributes (to change)
-  active?: boolean;
-  toggled?: boolean;
-  children?: FileTreeNodeModel[];
+  open?: boolean;
 };
 
 export type FileTreeModel = {
