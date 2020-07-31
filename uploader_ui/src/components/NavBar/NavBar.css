@@ -71,13 +71,11 @@
 
 .nav-bar li:hover .dropdown-container li {
   display: block;
-  transition: all 0.4s ease-out;
 }
 
 .nav-bar .dropdown-container li {
   display: none;
   position: relative;
-  transition: all 0.4s ease-out;
 }
 
 .dropdown-container {
@@ -85,6 +83,10 @@
   display: flex;
   flex-direction: column;
   width: 100%;
+}
+
+.dropdown-container .dropdown-item {
+  border-top: 2px solid var(--baby-blue);
 }
 
 .nav-bar .nav-dropdown .dropdown-title {

@@ -35,6 +35,8 @@ class UploaderInfoServer:
             await websocket.send(json.dumps(self.remote_tree_status))
         elif uri.endswith("/remote"):
             self.remote_tree_status_clients[websocket.remote_address] = websocket
+        elif uri.endswith("/command"):
+            await self.handle_commands(websocket)
         else:
             print("client tried to connect on:", uri)
             await websocket.close()
@@ -47,6 +49,15 @@ class UploaderInfoServer:
             del self.tree_status_clients[websocket.remote_address]
         elif uri.endswith("/status"):
             del self.remote_tree_status_clients[websocket.remote_address]
+
+    async def handle_commands(self, websocket: WS):
+        while not websocket.closed:
+            command = await websocket.recv()
+            cmd = json.loads(command)
+            if cmd["type"] == "CHANGE_DIR":
+                self.watcher.set_current_tree(cmd["tree_idx"])
+                for client in self.full_tree_clients.values():
+                    await client.send(json.dumps(self.watcher.current_tree()))
 
     def get_file_notifications(self):
         while True:
@@ -72,7 +83,7 @@ class UploaderInfoServer:
                 break
 
             self.parse_and_apply_remote_notification(notification)
-            print("GOT REMOTE NOTIFICATION:", notification)
+            # print("GOT REMOTE NOTIFICATION:", notification)
             with self.notification_lock:
                 for client in self.remote_tree_status_clients.values():
                     asyncio.run_coroutine_threadsafe(client.send(
@@ -91,6 +102,11 @@ class UploaderInfoServer:
                                                  "in_failure": notification.in_failure}
 
         filedoc = notification.file_doc
+
+        """
+        TODO: Somehow notify of local file deletion so it can be rendered without scanning the remote tree
+        I should probbably populate the remote tree automatically with the files/folders that have a gid
+
         if notification.type == FILE_DELETED_NOTIFICATION \
                 and "gid" in filedoc.keys() \
                 and filedoc["gid"] not in self.remote_tree_status.keys():
@@ -102,6 +118,7 @@ class UploaderInfoServer:
                 "name": filedoc["name"],
                 "mimeType": filedoc["mimeType"],
                 "gpid": }
+        """
 
     def parse_and_apply_remote_notification(self, notification: RemoteScanNotification):
         self.remote_tree_status = notification.remote_files

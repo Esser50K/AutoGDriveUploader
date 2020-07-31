@@ -1,5 +1,6 @@
 import asyncio
 import os
+import sys
 import json
 from queue import Queue
 from uploader.event_handler import DirectoryChangeEventHandler
@@ -32,6 +33,9 @@ def get_base_folder_id():
 ROOT_PATH = "/Users/esser420/Youtubing"
 #ROOT_PATH = "/Users/esser420/Pictures/GoPro"
 
+ROOT_PATHS = ["/Users/esser420/Youtubing",
+              "/Users/esser420/Pictures/GoPro"]
+
 if __name__ == "__main__":
     try:
         loop = asyncio.get_event_loop()
@@ -48,15 +52,15 @@ if __name__ == "__main__":
         remote_file_syncer.start()
 
         directory_watcher = DirectoryWatcher(
-            base_gid, ROOT_PATH, notification_queue)
+            base_gid, ROOT_PATHS, notification_queue)
         server = UploaderInfoServer(
             "localhost", 6900, directory_watcher, remote_file_sync_notifications, loop)
         server.start()
-        directory_watcher.event_handler.process_event()
+        directory_watcher.process_events()
         loop.run_until_complete(server.server_start)
         loop.run_forever()
     except Exception as e:
-        print("Got interrupted by:", e.with_traceback())
+        print("Got interrupted by:", e.with_traceback(sys.exc_info()[2]))
         server.stop()
     except KeyboardInterrupt:
         server.stop()
