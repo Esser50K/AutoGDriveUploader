@@ -8,27 +8,6 @@ import { FileLocation } from "../components/FileTree/consts";
 
 const FOLDER_MIMETYPE = "application/vnd.google-apps.folder";
 
-export const findChildren = (
-  pid: string,
-  fullTree: FileTreeModel
-): FileTreeNodeModel[] => {
-  return Object.values(fullTree).filter((node: any) => node.pid === pid);
-};
-
-const findAllChildren = (
-  pid: string,
-  tree: FileTreeModel
-): FileTreeNodeModel[] => {
-  const children = findChildren(pid, tree);
-  for (let child of children) {
-    if (child.folder) {
-      children.push(...findAllChildren(child.id, tree));
-    }
-  }
-
-  return children;
-};
-
 export const findChildrenWithMap = (
   pid: string,
   gpid: string,
@@ -64,21 +43,6 @@ export const findChildrenWithMap = (
   }
 
   return localChildren;
-};
-
-export const parentToChildrenMap = (
-  fullTree: FileTreeModel
-): { [key: string]: string[] } => {
-  const children: { [key: string]: string[] } = {};
-  for (let node of Object.values(fullTree)) {
-    if (!(node.pid in children)) {
-      children[node.pid] = [];
-    }
-
-    children[node.pid].push(node.id);
-  }
-
-  return children;
 };
 
 export const createLocalLookupTables = (
@@ -124,43 +88,10 @@ export const createRemoteLookupTables = (
   return [children, gidNodes];
 };
 
-export const findRemoteChildren = (
-  gpid: string,
-  remoteTree: RemoteFileTreeModel
-): RemoteFileTreeNodeModel[] => {
-  return Object.values(remoteTree).filter((node) => node.gpid === gpid);
-};
-
-export const findActive = (tree: FileTreeModel): FileTreeNodeModel[] => {
-  return Object.values(tree).filter((node: any) => node.active);
-};
-
 export const findRootId = (tree: FileTreeModel): string => {
   return Object.values(tree).find(
     (node: any): node is any => !(node.pid in tree)
   )?.id;
-};
-
-export const populateTree = (
-  pid: string,
-  tree: FileTreeModel
-): FileTreeNodeModel => {
-  const children = findChildren(pid, tree);
-
-  const childrenNodes = children.map((child: FileTreeNodeModel) => {
-    return populateTree(child.id, tree);
-  });
-
-  return {
-    id: pid,
-    pid: pid,
-    gid: tree[pid]?.gid,
-    name: tree[pid]?.name,
-    folder: tree[pid]?.folder || false,
-    active: tree[pid]?.active,
-    toggled: tree[pid]?.toggled === undefined ? true : tree[pid]?.toggled,
-    children: childrenNodes.length === 0 ? undefined : childrenNodes,
-  };
 };
 
 export const getLocation = (node: FileTreeNodeModel): FileLocation =>
@@ -211,35 +142,9 @@ export const remoteToLocalWithMap = (
   };
 };
 
-export const mergeTrees = (
-  localTree: FileTreeModel,
-  remoteTree: RemoteFileTreeModel
-): FileTreeModel => {
-  const mergedTree: FileTreeModel = { ...localTree };
-  for (let remoteFile of Object.values(remoteTree)) {
-    const local = remoteToLocal(remoteFile);
-    mergedTree[local.id] = local;
-  }
-
-  return mergedTree;
-};
-
-export const mergeTreesWithMap = (
-  localTree: FileTreeModel,
-  remoteTree: RemoteFileTreeModel
-): FileTreeModel => {
-  const mergedTree: FileTreeModel = { ...localTree };
-  for (let remoteFile of Object.values(remoteTree)) {
-    const local = remoteToLocal(remoteFile);
-    mergedTree[local.id] = local;
-  }
-
-  return mergedTree;
-};
-
 export const abbreviateSize = (value: number) => {
   let newValue = value.toString();
-  if (value >= 1000) {
+  if (value > 1000) {
     const suffixes = ["b", "kb", "mb", "gb", "tb"];
     const suffixNum = Math.floor(("" + value).length / 3);
     let shortValue = 0;
