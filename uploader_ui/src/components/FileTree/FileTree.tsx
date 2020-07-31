@@ -90,17 +90,15 @@ const FileTree = () => {
       setUploadStatusTree(JSON.parse(message.data));
     };
 
-    (async () => {
-      const nextChildren = findChildrenWithMap(
-        rootId,
-        fullTree[rootId]?.gid || "",
-        fullTree,
-        remoteTree,
-        parentToChildren,
-        remoteParentToChildren,
-        gidToNode)
-      setChildren(nextChildren);
-    })()
+    const nextChildren = findChildrenWithMap(
+      rootId,
+      fullTree[rootId]?.gid || "",
+      fullTree,
+      remoteTree,
+      parentToChildren,
+      remoteParentToChildren,
+      gidToNode)
+    setChildren(nextChildren);
   }, [rootId, fullTree, remoteTree, parentToChildren, remoteParentToChildren, gidToNode]);
 
   return (

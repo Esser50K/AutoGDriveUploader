@@ -108,6 +108,7 @@ class DriveService:
 
     def upload_file(self, file_id, file_name, file_path,
                     file_gid=None, parent_gid=None, progress_queue=Queue()):
+        print("uploading file at:", file_path)
         self.cancel_uploads[file_id] = False
         file_metadata = {'name': file_name}
         if parent_gid and not file_gid:

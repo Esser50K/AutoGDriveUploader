@@ -159,7 +159,8 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
         new_tree = self.get_tree(self.root_path)
         new_files = new_tree.keys() - self.current_tree.keys()
         deleted_files = self.current_tree.keys() - new_tree.keys()
-        new_folders = set([f for f in new_files if new_tree[f]["folder"]])
+        new_folders = set([f for f in new_files if new_tree[f]["folder"]] +
+                          [f for f in self.current_tree.keys() if self.current_tree[f]["folder"] and "gid" not in self.current_tree[f].keys()])
         new_files = new_files - new_folders
         still_old = self.current_tree.keys() & new_tree.keys()
 

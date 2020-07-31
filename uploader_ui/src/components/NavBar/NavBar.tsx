@@ -1,5 +1,5 @@
-import React from "react";
-import DropDown from "../DropDown/DropDown"
+import React, { useEffect } from "react";
+import DropDown from "./DropDown"
 import { useRecoilState } from "recoil";
 import { selectedSyncFolderState } from "../../states/filetree";
 import "./NavBar.css"
@@ -12,6 +12,7 @@ interface NavBarProps {
 
 const NavBar = (props: NavBarProps) => {
     const [selectedFolder] = useRecoilState(selectedSyncFolderState);
+
     return (
         <div className="nav-bar">
             <ul className="nav-items">
