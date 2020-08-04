@@ -15,6 +15,16 @@ export const selectedNodeState = atom({
   default: "",
 });
 
+export const openFileState = atom({
+  key: "openFileState",
+  default: "",
+});
+
+export const currentRootState = atom({
+  key: "currentRootState",
+  default: "",
+});
+
 export const parentToChildrenState = atom<{ [key: string]: string[] }>({
   key: "parentToChildrenState",
   default: {},

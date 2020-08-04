@@ -1,5 +1,8 @@
+import os
 import json
 import asyncio
+import subprocess
+import platform
 from queue import Queue
 from uploader.notification import *
 from uploader.watcher import DirectoryWatcher
@@ -34,7 +37,9 @@ class UploaderInfoServer:
                 self.tree_status_clients[websocket.remote_address] = websocket
             await websocket.send(json.dumps(self.remote_tree_status))
         elif uri.endswith("/remote"):
-            self.remote_tree_status_clients[websocket.remote_address] = websocket
+            with self.notification_lock:
+                self.remote_tree_status_clients[websocket.remote_address] = websocket
+            await websocket.send(json.dumps(self.remote_tree_status))
         elif uri.endswith("/command"):
             await self.handle_commands(websocket)
         else:
@@ -58,6 +63,27 @@ class UploaderInfoServer:
                 self.watcher.set_current_tree(cmd["tree_idx"])
                 for client in self.full_tree_clients.values():
                     await client.send(json.dumps(self.watcher.current_tree()))
+            elif cmd["type"] == "OPEN_FILE":
+                print("HEEERREEE")
+                if "id" not in cmd.keys() or str(cmd["id"]) not in self.watcher.current_tree().keys():
+                    print("OUT:", cmd)
+                    continue
+
+                print("GETTING IT:")
+                print("GETTING IT:", cmd["id"],
+                      self.watcher.current_tree()[str(cmd["id"])])
+                filepath = self.watcher.current_tree()[str(cmd["id"])]["path"]
+                print("HEEERREEE:", filepath)
+                if platform.system() == 'Darwin':
+                    print("HEEERREEE Darwin:", filepath)
+                    subprocess.call(('open', filepath))
+                elif platform.system() == 'Windows':
+                    print("HEEERREEE Windows:", filepath)
+                    # pylint: disable=no-member
+                    os.startfile(filepath)
+                else:
+                    print("HEEERREEE Else:", filepath)
+                    subprocess.call(('xdg-open', filepath))
 
     def get_file_notifications(self):
         while True:
