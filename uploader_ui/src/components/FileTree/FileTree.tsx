@@ -19,6 +19,7 @@ import {
   gidToNodeState,
   remoteGidToNodeState,
   remoteParentToChildrenState,
+  currentRootState,
 } from "../../states/filetree";
 import debounce from "lodash/debounce";
 
@@ -27,11 +28,11 @@ const uploadTreeState = new WebSocket("ws://localhost:6900/status");
 const remoteTreeState = new WebSocket("ws://localhost:6900/remote");
 
 const FileTree = () => {
-  const [rootId, setRootId] = useState("");
   const [children, setChildren] = useState<FileTreeNodeModel[]>([]);
   const [fullTree, setFullTree] = useState<FileTreeModel>({} as FileTreeModel);
   const [uploadStatusTree, setUploadStatusTree] = useState<FileTreeModel>({});
   const [remoteTree, setRemoteTree] = useState<RemoteFileTreeModel>({});
+  const [rootId, setRootId] = useRecoilState(currentRootState);
   const [parentToChildren, setParentToChildren] = useRecoilState(
     parentToChildrenState
   );
@@ -47,8 +48,9 @@ const FileTree = () => {
     const tree = JSON.parse(data);
     setFullTree(tree);
 
-    const rootId = findRootId(tree);
-    setRootId(rootId);
+    if (rootId === "" || !(rootId in tree)) {
+      setRootId(findRootId(tree));
+    }
 
     const [parentToChildrenMap, gidToNodeMap] = createLocalLookupTables(tree);
     setParentToChildren(() => parentToChildrenMap);
@@ -100,6 +102,22 @@ const FileTree = () => {
       gidToNode)
     setChildren(nextChildren);
   }, [rootId, fullTree, remoteTree, parentToChildren, remoteParentToChildren, gidToNode]);
+
+  useEffect(() => {
+    const handleUserInput = (e: any) => {
+      if (e.ctrlKey && e.key === 'ArrowUp') {
+        const currentRoot = fullTree[rootId]
+        if (currentRoot && currentRoot.pid in fullTree) {
+          setRootId(currentRoot.pid)
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleUserInput);
+    return () => {
+      document.removeEventListener('keydown', handleUserInput)
+    }
+  }, [rootId])
 
   return (
     <ul className="root-folder">

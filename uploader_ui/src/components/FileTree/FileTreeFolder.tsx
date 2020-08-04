@@ -11,13 +11,14 @@ import {
 } from "../../utils/filetree";
 import FileTreeFile from "./FileTreeFile";
 import "./FileTree.css";
-import { useRecoilState } from "recoil";
+import { useRecoilState, useSetRecoilState } from "recoil";
 import {
   nodesState,
   parentToChildrenState,
   gidToNodeState,
   remoteParentToChildrenState,
   selectedNodeState,
+  currentRootState,
 } from "../../states/filetree";
 
 interface FileTreeProps {
@@ -31,6 +32,7 @@ const FileTreeFolder = (props: FileTreeProps) => {
   const [children, setChildren] = useState<FileTreeNodeModel[]>([]);
   const [currentNodesState, setNodesState] = useRecoilState(nodesState);
   const [selectedNodeId, setSelectedNodeId] = useRecoilState(selectedNodeState);
+  const setRootId = useSetRecoilState(currentRootState);
   const [parentToChildren] = useRecoilState(parentToChildrenState);
   const [remoteParentToChildren] = useRecoilState(remoteParentToChildrenState);
   const [gidToNode] = useRecoilState(gidToNodeState);
@@ -47,6 +49,12 @@ const FileTreeFolder = (props: FileTreeProps) => {
       return newNodesState;
     });
   };
+
+  const onDoubleClick = (event: MouseEvent<HTMLLIElement, globalThis.MouseEvent>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setRootId(props.treeNode.id);
+  }
 
   const location = getLocation(props.treeNode);
   const background = getBackgroundColor(location);
@@ -72,15 +80,15 @@ const FileTreeFolder = (props: FileTreeProps) => {
     })()
   }, [isOpen, props, parentToChildren, remoteParentToChildren, gidToNode])
 
-  if (nodeSelected !== "") {
-    console.info(props.treeNode);
-  }
   return (
     <div className="node-container folder-container">
       <li
         className={`node folder-node ${background} ${nodeSelected}`}
         onClick={(e) => {
           onClick(e);
+        }}
+        onDoubleClick={(e) => {
+          onDoubleClick(e);
         }}
       >
         <img

@@ -6,8 +6,8 @@ import {
   getLocation,
   getBackgroundColor,
 } from "../../utils/filetree";
-import { useRecoilState } from "recoil";
-import { selectedNodeState } from "../../states/filetree";
+import { useRecoilState, useSetRecoilState } from "recoil";
+import { selectedNodeState, openFileState } from "../../states/filetree";
 
 interface FileTreeProps {
   treeNode: FileTreeNodeModel;
@@ -15,12 +15,16 @@ interface FileTreeProps {
 
 const FileTreeFile = (props: FileTreeProps) => {
   const [selectedNodeId, setSelectedNodeId] = useRecoilState(selectedNodeState);
+  const openFile = useSetRecoilState(openFileState);
 
   const onClick = (event: React.MouseEvent<HTMLLIElement, MouseEvent>) => {
     event.preventDefault();
     event.stopPropagation();
     setSelectedNodeId(() => props.treeNode.id)
+  };
 
+  const onDoubleClick = (event: React.MouseEvent<HTMLLIElement, MouseEvent>) => {
+    openFile(() => props.treeNode.id)
   };
 
   const location = getLocation(props.treeNode);
@@ -31,6 +35,7 @@ const FileTreeFile = (props: FileTreeProps) => {
       <li
         className={`node file-node ${background} ${nodeSelected}`}
         onClick={(e) => onClick(e)}
+        onDoubleClick={(e) => onDoubleClick(e)}
       >
         <div>
           <div className="node-content-title-line">
