@@ -46,11 +46,6 @@ if __name__ == "__main__":
         # initiate thread-safe drive service singleton
         driveService = DriveService(creds)
         remote_file_sync_notifications = Queue()
-        remote_file_syncer = Thread(
-            target=driveService.list_folder_deep, args=(base_gid, remote_file_sync_notifications))
-        remote_file_syncer.daemon = True
-        remote_file_syncer.start()
-
         directory_watcher = DirectoryWatcher(
             base_gid, ROOT_PATHS, notification_queue)
         server = UploaderInfoServer(

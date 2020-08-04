@@ -79,3 +79,14 @@
   background-color: url("%PUBLIC_URL%/open-folder.png");
   width: 50px;
 }
+
+.folder-loader {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+}
+
+.folder-loader.show {
+  display: flex;
+}

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import DropDown from "./DropDown"
 import { useRecoilState } from "recoil";
 import { selectedSyncFolderState } from "../../states/filetree";
