@@ -43,6 +43,7 @@ class FileMovedNotification(Notification):
 
 
 class RemoteScanNotification:
-    def __init__(self, remote_files):
+    def __init__(self, root, remote_files):
         self.type = REMOTE_SCAN_NOTIFICATION
+        self.root = root
         self.remote_files = remote_files

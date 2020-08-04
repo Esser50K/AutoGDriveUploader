@@ -17,8 +17,6 @@ export const findChildrenWithMap = (
   remoteParentToChildren: { [key: string]: string[] },
   localGidToNode: { [key: string]: FileTreeNodeModel }
 ): FileTreeNodeModel[] => {
-  const start = performance.now()
-
   const localChildrenIds = pid in parentToChildren
     ? parentToChildren[pid]
     : [];

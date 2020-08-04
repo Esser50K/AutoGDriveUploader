@@ -3,6 +3,7 @@ import os
 import pickle
 import time
 import json
+from uploader.utils import find_children
 from copy import deepcopy
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build, MediaFileUpload, HttpError
@@ -51,6 +52,7 @@ class DriveService:
                 'drive', 'v3', credentials=creds, requestBuilder=build_request)
 
         self.cancel_uploads = {}
+        self.all_items = {}
 
     def list_folder_deep(self, folder_gid, notification_queue=Queue(), depth=9999, all_items={}):
         last_remote_scan_file = folder_gid + "_scan.json"
@@ -62,7 +64,7 @@ class DriveService:
 
     def _list_folder_deep(self, folder_gid, filename, notification_queue=Queue(), depth=9999, all_items={}):
         if depth == 0:
-            return self._write_and_notify(filename, all_items)
+            return self._write_and_notify(folder_gid, filename, all_items)
 
         depth -= 1
 
@@ -72,26 +74,35 @@ class DriveService:
         except Exception as e:
             print("Error occurred trying to list items of:", folder_gid, e)
 
+        folder_nodes = {}
         for item in folder_items:
             if "kind" in item:
                 del item["kind"]
 
             item["gpid"] = folder_gid
             all_items[item["id"]] = item
+            folder_nodes[item["id"]] = item
             if item["mimeType"] == FOLDER_MIMETYPE:
                 all_items = self._list_folder_deep(
                     item["id"], filename, notification_queue, depth, all_items)
 
-        return self._write_and_notify(filename, all_items, notification_queue)
+        all_items = {**self.all_items, **all_items}
+        previous_children = find_children(folder_gid, all_items)
+        deleted_or_moved = set(previous_children) - folder_nodes.keys()
+        self.all_items = all_items
+        for deleted in deleted_or_moved:
+            del self.all_items[deleted]
 
-    def _write_and_notify(self, filename, items, notification_queue=Queue()):
+        return self._write_and_notify(folder_gid, filename, all_items, notification_queue)
+
+    def _write_and_notify(self, folder_gid, filename, items, notification_queue=Queue()):
         temp_file_name = ("%s_%s" % (filename, str(
             int(time.time())))) + ".json"
         with open(temp_file_name, "w") as lt:
             lt.write(json.dumps(items, indent=4))
 
         os.replace(temp_file_name, filename)
-        notification_queue.put(RemoteScanNotification(items))
+        notification_queue.put(RemoteScanNotification(folder_gid, items))
         return items
 
     def list_folder_items(self, folder_gid):

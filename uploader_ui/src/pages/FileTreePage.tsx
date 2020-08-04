@@ -3,30 +3,39 @@ import FileTree from "../components/FileTree/FileTree";
 import "./FileTreePage.css";
 import NavBar from "../components/NavBar/NavBar";
 import { useRecoilState } from "recoil";
-import { selectedSyncFolderState, openFileState } from "../states/filetree";
+import { selectedSyncFolderState, openFileState, selectedFolderIdState } from "../states/filetree";
 
 const commandSocket = new WebSocket("ws://localhost:6900/command");
 
 const FileTreePage = () => {
-    const [selectedFolder] = useRecoilState(selectedSyncFolderState);
+    const [selectedSyncFolder] = useRecoilState(selectedSyncFolderState);
     const [openFileId, setOpenFileId] = useRecoilState(openFileState);
+    const [selectedFolderId] = useRecoilState(selectedFolderIdState);
 
     useEffect(() => {
-        if (commandSocket.readyState === commandSocket.OPEN) {
-            commandSocket.send(JSON.stringify({ "type": "CHANGE_DIR", "tree_idx": selectedFolder }))
-        }
-    }, [selectedFolder])
-
-    useEffect(() => {
-        if (commandSocket.readyState !== commandSocket.OPEN || openFileId === "") {
-            console.info("OUTTA HERE")
+        if (commandSocket.readyState !== commandSocket.OPEN) {
             return
         }
 
-        console.info("SENDING")
+        commandSocket.send(JSON.stringify({ "type": "CHANGE_DIR", "tree_idx": selectedSyncFolder }))
+    }, [selectedSyncFolder])
+
+    useEffect(() => {
+        if (commandSocket.readyState !== commandSocket.OPEN || openFileId === "") {
+            return
+        }
+
         commandSocket.send(JSON.stringify({ "type": "OPEN_FILE", "id": openFileId }))
         setOpenFileId(() => "")
-    }, [openFileId])
+    }, [openFileId, setOpenFileId])
+
+    useEffect(() => {
+        if (commandSocket.readyState !== commandSocket.OPEN || selectedFolderId === "") {
+            return
+        }
+
+        commandSocket.send(JSON.stringify({ "type": "SYNC_FOLDER", "id": selectedFolderId }))
+    }, [selectedFolderId])
 
     return (
         <div className="app">

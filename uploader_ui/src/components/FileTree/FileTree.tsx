@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import FileTreeFile from "./FileTreeFile";
 import FileTreeFolder from "./FileTreeFolder";
 import {
@@ -13,15 +13,15 @@ import {
   createRemoteLookupTables,
 } from "../../utils/filetree";
 import "./FileTree.css";
-import { useRecoilState } from "recoil";
+import { useRecoilState, useSetRecoilState } from "recoil";
 import {
   parentToChildrenState,
   gidToNodeState,
   remoteGidToNodeState,
   remoteParentToChildrenState,
   currentRootState,
+  loadingFolderIdState,
 } from "../../states/filetree";
-import debounce from "lodash/debounce";
 
 const fullTreeState = new WebSocket("ws://localhost:6900/full");
 const uploadTreeState = new WebSocket("ws://localhost:6900/status");
@@ -40,7 +40,8 @@ const FileTree = () => {
     remoteParentToChildrenState
   );
   const [gidToNode, setGidToNode] = useRecoilState(gidToNodeState);
-  const [_, setRemotGidToNode] = useRecoilState(
+  const setLoadingFolderId = useSetRecoilState(loadingFolderIdState);
+  const setRemotGidToNode = useSetRecoilState(
     remoteGidToNodeState
   );
 
@@ -68,8 +69,14 @@ const FileTree = () => {
   };
 
   const parseAndApplyRemote = async (data: string) => {
-    const currentRemoteTree = JSON.parse(data);
+    const remoteTreeUpdate = JSON.parse(data);
+    console.info(remoteTreeUpdate);
+    const currentRemoteTree = remoteTreeUpdate.tree;
     setRemoteTree(currentRemoteTree);
+    setLoadingFolderId((previousLoadingFolder) => {
+      previousLoadingFolder.delete(remoteTreeUpdate.root)
+      return previousLoadingFolder
+    })
 
     const [parentToChildrenMap, gidToNodeMap] = createRemoteLookupTables(
       currentRemoteTree
@@ -83,9 +90,8 @@ const FileTree = () => {
       parseAndApplyLocal(message.data);
     };
 
-    const parseAndApplyRemoteDebounced = debounce(parseAndApplyRemote, 200);
     remoteTreeState.onmessage = (message: MessageEvent) => {
-      parseAndApplyRemoteDebounced(message.data);
+      parseAndApplyRemote(message.data);
     };
 
     uploadTreeState.onmessage = (message: MessageEvent) => {
@@ -117,7 +123,7 @@ const FileTree = () => {
     return () => {
       document.removeEventListener('keydown', handleUserInput)
     }
-  }, [rootId])
+  }, [rootId, fullTree])
 
   return (
     <ul className="root-folder">

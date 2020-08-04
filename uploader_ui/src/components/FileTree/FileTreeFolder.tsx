@@ -19,6 +19,7 @@ import {
   remoteParentToChildrenState,
   selectedNodeState,
   currentRootState,
+  selectedFolderIdState,
 } from "../../states/filetree";
 
 interface FileTreeProps {
@@ -33,6 +34,7 @@ const FileTreeFolder = (props: FileTreeProps) => {
   const [currentNodesState, setNodesState] = useRecoilState(nodesState);
   const [selectedNodeId, setSelectedNodeId] = useRecoilState(selectedNodeState);
   const setRootId = useSetRecoilState(currentRootState);
+  const setSelectedFolderId = useSetRecoilState(selectedFolderIdState);
   const [parentToChildren] = useRecoilState(parentToChildrenState);
   const [remoteParentToChildren] = useRecoilState(remoteParentToChildrenState);
   const [gidToNode] = useRecoilState(gidToNodeState);
@@ -41,6 +43,7 @@ const FileTreeFolder = (props: FileTreeProps) => {
     event.preventDefault();
     event.stopPropagation();
     setSelectedNodeId(() => props.treeNode.id)
+    setSelectedFolderId(() => props.treeNode.id)
     setNodesState((oldNodesState) => {
       const newNodesState = { ...oldNodesState };
       const newCurrentNodeState = { ...oldNodesState[props.treeNode.id] };
@@ -60,7 +63,6 @@ const FileTreeFolder = (props: FileTreeProps) => {
   const background = getBackgroundColor(location);
   const nodeSelected = props.treeNode.id === selectedNodeId ? "node-selected" : "";
   const isOpen = currentNodesState[props.treeNode.id]?.open;
-  const childrenCss = isOpen ? "non-root-folder show" : "non-root-folder";
   const imageUrl = isOpen ? "open-folder.png" : "closed-folder.png";
 
   useEffect(() => {
@@ -109,7 +111,7 @@ const FileTreeFolder = (props: FileTreeProps) => {
           </div>
         </div>
       </li>
-      <ul className={childrenCss}>
+      <ul className={`non-root-folder ${isOpen && "show"}`}>
         {Object.values(children).map((node) => {
           return node.folder ? (
             <FileTreeFolder
@@ -123,6 +125,13 @@ const FileTreeFolder = (props: FileTreeProps) => {
               <FileTreeFile key={node.id} treeNode={node}></FileTreeFile>
             );
         })}
+        <div className={`folder-loader ${isOpen && "show"}`}>
+          <li>
+            <div className="loader center">
+              <i className="fa fa-cog fa-spin" />
+            </div>
+          </li>
+        </div>
       </ul>
     </div>
   );
