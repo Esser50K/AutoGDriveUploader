@@ -100,7 +100,7 @@ const FileTree = () => {
 
     const nextChildren = findChildrenWithMap(
       rootId,
-      fullTree[rootId]?.gid || "",
+      fullTree[rootId]?.gid || rootId || "",
       fullTree,
       remoteTree,
       parentToChildren,
@@ -112,9 +112,17 @@ const FileTree = () => {
   useEffect(() => {
     const handleUserInput = (e: any) => {
       if (e.ctrlKey && e.key === 'ArrowUp') {
-        const currentRoot = fullTree[rootId]
-        if (currentRoot && currentRoot.pid in fullTree) {
+        const currentRoot = fullTree[rootId] || remoteTree[rootId]
+        console.info("ROOT", currentRoot)
+        if (!currentRoot) {
+          return
+        }
+
+        console.info(currentRoot.gpid!, currentRoot.gpid! in fullTree || currentRoot.gpid! in remoteTree);
+        if (currentRoot.pid in fullTree || currentRoot.pid in remoteTree) {
           setRootId(currentRoot.pid)
+        } else if (currentRoot.gpid && currentRoot.gpid in gidToNode) {
+          setRootId(gidToNode[currentRoot.gpid].id)
         }
       }
     }
