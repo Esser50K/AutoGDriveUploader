@@ -71,13 +71,13 @@ class UploaderInfoServer:
                 if str(cmd["id"]) in self.watcher.current_tree().keys() and "gid" in self.watcher.current_tree()[str(cmd["id"])]:
                     gid = self.watcher.current_tree()[str(cmd["id"])]["gid"]
                     Thread(target=DriveService().list_folder_deep, args=(
-                        gid, self.remote_notification_queue, 1,)).start()
+                        self.watcher.base_gid, gid, self.remote_notification_queue, 1,)).start()
                     continue
 
                 if str(cmd["id"]) in self.remote_tree_status.keys():
                     gid = self.remote_tree_status[str(cmd["id"])]["id"]
                     Thread(target=DriveService().list_folder_deep, args=(
-                        gid, self.remote_notification_queue, 1,)).start()
+                        self.watcher.base_gid, gid, self.remote_notification_queue, 1,)).start()
                     continue
 
             elif cmd["type"] == "OPEN_FILE":

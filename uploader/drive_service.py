@@ -54,8 +54,8 @@ class DriveService:
         self.cancel_uploads = {}
         self.all_items = {}
 
-    def list_folder_deep(self, folder_gid, notification_queue=Queue(), depth=9999, all_items={}):
-        last_remote_scan_file = folder_gid + "_scan.json"
+    def list_folder_deep(self, filename, folder_gid, notification_queue=Queue(), depth=9999, all_items={}):
+        last_remote_scan_file = filename + "_scan.json"
         if os.path.isfile(last_remote_scan_file):
             with open(last_remote_scan_file, "r") as last_scan:
                 all_items = json.loads(last_scan.read())
@@ -64,7 +64,7 @@ class DriveService:
 
     def _list_folder_deep(self, folder_gid, filename, notification_queue=Queue(), depth=9999, all_items={}):
         if depth == 0:
-            return self._write_and_notify(folder_gid, filename, all_items)
+            return self._write_and_notify(folder_gid, filename, all_items, notification_queue)
 
         depth -= 1
 
@@ -96,6 +96,7 @@ class DriveService:
         return self._write_and_notify(folder_gid, filename, all_items, notification_queue)
 
     def _write_and_notify(self, folder_gid, filename, items, notification_queue=Queue()):
+        print("WRITING TO FILENAME:", filename)
         temp_file_name = ("%s_%s" % (filename, str(
             int(time.time())))) + ".json"
         with open(temp_file_name, "w") as lt:
