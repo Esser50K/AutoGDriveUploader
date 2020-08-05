@@ -96,7 +96,6 @@ class DriveService:
         return self._write_and_notify(folder_gid, filename, all_items, notification_queue)
 
     def _write_and_notify(self, folder_gid, filename, items, notification_queue=Queue()):
-        print("WRITING TO FILENAME:", filename)
         temp_file_name = ("%s_%s" % (filename, str(
             int(time.time())))) + ".json"
         with open(temp_file_name, "w") as lt:
