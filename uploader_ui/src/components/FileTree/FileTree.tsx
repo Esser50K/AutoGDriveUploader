@@ -123,6 +123,8 @@ const FileTree = () => {
           setRootId(currentRoot.pid)
         } else if (currentRoot.gpid && currentRoot.gpid in gidToNode) {
           setRootId(gidToNode[currentRoot.gpid].id)
+        } else if (currentRoot.gpid && (currentRoot.gpid in fullTree || currentRoot.gpid in remoteTree)) {
+          setRootId(currentRoot.gpid)
         }
       }
     }
