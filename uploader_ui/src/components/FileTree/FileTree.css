@@ -75,8 +75,7 @@
 .node-upload-status {
 }
 
-.open-folder-icon {
-  background-color: url("%PUBLIC_URL%/open-folder.png");
+.node-icon {
   width: 50px;
 }
 
