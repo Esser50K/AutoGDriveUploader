@@ -96,7 +96,7 @@ const FileTreeFolder = (props: FileTreeProps) => {
         <img
           src={process.env.PUBLIC_URL + `/icons/${imageUrl}`}
           alt="open or closed folder icon"
-          className="open-folder-icon"
+          className="node-icon"
         />
         <div>
           <div className="node-content-title-line">
