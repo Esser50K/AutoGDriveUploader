@@ -1,0 +1,14 @@
+.progress-bar-container {
+  background-color: var(--shaded-yellow);
+  border-radius: 10px;
+  align-self: center;
+  width: 80%;
+}
+
+.progress-bar-progress {
+  background-color: var(--shaded-green);
+  border-radius: 10px;
+  padding: 5px;
+  display: flex;
+  justify-content: center;
+}

@@ -8,6 +8,7 @@ export type FileTreeNodeModel = {
   last_modified?: number;
   path?: string;
   size?: number;
+  progress?: number;
 
   // display attributes (to change)
   open?: boolean;
