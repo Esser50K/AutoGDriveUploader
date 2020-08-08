@@ -21,6 +21,8 @@ import {
   remoteParentToChildrenState,
   currentRootState,
   loadingFolderIdState,
+  selectedSyncFolderState,
+  availableSyncFoldersState,
 } from "../../states/filetree";
 
 const fullTreeState = new WebSocket("ws://localhost:6900/full");
@@ -40,13 +42,16 @@ const FileTree = () => {
     remoteParentToChildrenState
   );
   const [gidToNode, setGidToNode] = useRecoilState(gidToNodeState);
-  const setLoadingFolderId = useSetRecoilState(loadingFolderIdState);
+  const setLoadingFolderIds = useSetRecoilState(loadingFolderIdState);
   const setRemotGidToNode = useSetRecoilState(
     remoteGidToNodeState
   );
+  const setSelectedSyncFolder = useSetRecoilState(selectedSyncFolderState);
+  const setAvailableSyncFolders = useSetRecoilState(availableSyncFoldersState);
 
   const parseAndApplyLocal = (data: string) => {
-    const tree = JSON.parse(data);
+    const fullTreeStatus = JSON.parse(data);
+    const tree = fullTreeStatus.tree;
     setFullTree(tree);
 
     if (rootId === "" || !(rootId in tree)) {
@@ -66,14 +71,18 @@ const FileTree = () => {
       remoteParentToChildren,
       gidToNodeMap);
     setChildren(nextChildren);
+    setSelectedSyncFolder(fullTreeStatus.idx);
+    setAvailableSyncFolders(fullTreeStatus.names);
   };
 
   const parseAndApplyRemote = async (data: string) => {
     const remoteTreeUpdate = JSON.parse(data);
-    console.info(remoteTreeUpdate);
     const currentRemoteTree = remoteTreeUpdate.tree;
     setRemoteTree(currentRemoteTree);
-    setLoadingFolderId((previousLoadingFolder) => {
+    setLoadingFolderIds((previousLoadingFolder) => {
+      if (remoteTreeUpdate.root in gidToNode) {
+        previousLoadingFolder.delete(gidToNode[remoteTreeUpdate.root].id)
+      }
       previousLoadingFolder.delete(remoteTreeUpdate.root)
       return previousLoadingFolder
     })

@@ -50,7 +50,7 @@ const FileTreeFile = (props: FileTreeProps) => {
           alt="icon representing filename"
           className="node-icon"
         />
-        <div>
+        <div className="node-content">
           <div className="node-content-title-line">
             <div className="node-element node-title">
               <b>{props.treeNode.name}</b>

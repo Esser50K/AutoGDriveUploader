@@ -20,6 +20,7 @@ import {
   selectedNodeState,
   currentRootState,
   selectedFolderIdState,
+  loadingFolderIdState,
 } from "../../states/filetree";
 
 interface FileTreeProps {
@@ -35,6 +36,7 @@ const FileTreeFolder = (props: FileTreeProps) => {
   const [selectedNodeId, setSelectedNodeId] = useRecoilState(selectedNodeState);
   const setRootId = useSetRecoilState(currentRootState);
   const setSelectedFolderId = useSetRecoilState(selectedFolderIdState);
+  const [loadingFolderIds, setLoadingFolderIds] = useRecoilState(loadingFolderIdState);
   const [parentToChildren] = useRecoilState(parentToChildrenState);
   const [remoteParentToChildren] = useRecoilState(remoteParentToChildrenState);
   const [gidToNode] = useRecoilState(gidToNodeState);
@@ -44,6 +46,10 @@ const FileTreeFolder = (props: FileTreeProps) => {
     event.stopPropagation();
     setSelectedNodeId(() => props.treeNode.id)
     setSelectedFolderId(() => props.treeNode.id)
+    setLoadingFolderIds((oldLoadingFolderIds) => {
+      oldLoadingFolderIds.add(props.treeNode.id);
+      return oldLoadingFolderIds;
+    })
     setNodesState((oldNodesState) => {
       const newNodesState = { ...oldNodesState };
       const newCurrentNodeState = { ...oldNodesState[props.treeNode.id] };
@@ -98,7 +104,7 @@ const FileTreeFolder = (props: FileTreeProps) => {
           alt="open or closed folder icon"
           className="node-icon"
         />
-        <div>
+        <div className="node-content">
           <div className="node-content-title-line">
             <div className="node-element node-title">
               <b>{props.treeNode.name}</b>
@@ -125,13 +131,13 @@ const FileTreeFolder = (props: FileTreeProps) => {
               <FileTreeFile key={node.id} treeNode={node}></FileTreeFile>
             );
         })}
-        <div className={`folder-loader ${isOpen && "show"}`}>
+        {loadingFolderIds.has(props.treeNode.id) && <div className={`folder-loader ${isOpen && "show"}`}>
           <li>
             <div className="loader center">
               <i className="fa fa-cog fa-spin" />
             </div>
           </li>
-        </div>
+        </div>}
       </ul>
     </div>
   );

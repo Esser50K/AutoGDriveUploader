@@ -20,11 +20,11 @@ const NavBar = (props: NavBarProps) => {
                     <li className="nav-title"><span>{props.title}</span></li>}
                 <li className="nav-item nav-dropdown">
                     <span className="dropdown-title">
-                        <div>
+                        {selectedFolder >= 0 && <div>
                             Currently Selected Folder:
-                        </div>
+                        </div>}
                         <div className="dropdown-selected">
-                            {props.syncFolders.length > 0
+                            {props.syncFolders.length > 0 && selectedFolder >= 0
                                 ? props.syncFolders[selectedFolder]
                                 : "Configure Sync Folder..."}
                         </div>

@@ -45,6 +45,12 @@ class DirectoryWatcher(Thread):
     def current_tree(self):
         return self.event_handlers[self.current_tree_idx].current_tree
 
+    def current_tree_name(self):
+        return self.root_paths[self.current_tree_idx].split("/")[-1]
+
+    def all_tree_names(self):
+        return list(map(lambda x: x.split("/")[-1], self.root_paths))
+
     def set_current_tree(self, idx):
         self.current_tree_idx = idx
 

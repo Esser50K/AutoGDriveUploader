@@ -32,7 +32,7 @@ class UploaderInfoServer:
         if uri.endswith("/full"):
             with self.notification_lock:
                 self.full_tree_clients[websocket.remote_address] = websocket
-            await websocket.send(json.dumps(self.watcher.current_tree()))
+            await websocket.send(json.dumps({"idx": self.watcher.current_tree_idx, "names": self.watcher.all_tree_names(), "tree": self.watcher.current_tree()}))
         elif uri.endswith("/status"):
             with self.notification_lock:
                 self.tree_status_clients[websocket.remote_address] = websocket
@@ -63,7 +63,7 @@ class UploaderInfoServer:
             if cmd["type"] == "CHANGE_DIR":
                 self.watcher.set_current_tree(cmd["tree_idx"])
                 for client in self.full_tree_clients.values():
-                    await client.send(json.dumps(self.watcher.current_tree()))
+                    await client.send(json.dumps({"idx": self.watcher.current_tree_idx, "names": self.watcher.all_tree_names(), "tree": self.watcher.current_tree()}))
             elif cmd["type"] == "SYNC_FOLDER":
                 if "id" not in cmd.keys():
                     continue
@@ -104,7 +104,7 @@ class UploaderInfoServer:
             with self.notification_lock:
                 for client in self.full_tree_clients.values():
                     asyncio.run_coroutine_threadsafe(client.send(
-                        json.dumps(self.watcher.current_tree())), self.loop)
+                        json.dumps({"idx": self.watcher.current_tree_idx, "names": self.watcher.all_tree_names(), "tree": self.watcher.current_tree()})), self.loop)
 
                 for client in self.tree_status_clients.values():
                     asyncio.run_coroutine_threadsafe(client.send(
