@@ -1,5 +1,5 @@
 import React from "react";
-import { FileTreeNodeModel } from "../../models/filetree";
+import { FileTreeNodeModel, FileTreeModel } from "../../models/filetree";
 import "./FileTree.css";
 import {
   abbreviateSize,
@@ -9,9 +9,11 @@ import {
 import { useRecoilState, useSetRecoilState } from "recoil";
 import { selectedNodeState, openFileState } from "../../states/filetree";
 import { iconFiletypeMap } from "./consts";
+import ProgressBar from "../ProgressBar/ProgressBar";
 
 interface FileTreeProps {
   treeNode: FileTreeNodeModel;
+  uploadStatusTree: FileTreeModel;
 }
 
 const FileTreeFile = (props: FileTreeProps) => {
@@ -38,6 +40,8 @@ const FileTreeFile = (props: FileTreeProps) => {
   const background = getBackgroundColor(location);
   const nodeSelected = props.treeNode.id === selectedNodeId ? "node-selected" : "";
   const icon = getIconName(props.treeNode.name) + ".png"
+  const uploadProgress = props.uploadStatusTree[props.treeNode.id]?.progress;
+
   return (
     <div className="node-container file-container">
       <li
@@ -51,21 +55,27 @@ const FileTreeFile = (props: FileTreeProps) => {
           className="node-icon"
         />
         <div className="node-content">
-          <div className="node-content-title-line">
-            <div className="node-element node-title">
-              <b>{props.treeNode.name}</b>
-            </div>
-          </div>
-          <div className="node-content-status-line">
-            <div className="node-element node-upload-status">
-              {"UPLOADED: " + (props.treeNode.gid !== undefined)}
-            </div>
-            {props.treeNode.size && (
-              <div className="node-element node-last-modified">
-                {"SIZE: " + abbreviateSize(props.treeNode.size)}
+          <div className="node-content-left">
+            <div className="node-content-title-line">
+              <div className="node-element node-title">
+                <b>{props.treeNode.name}</b>
               </div>
-            )}
+            </div>
+            <div className="node-content-status-line">
+              <div className="node-element node-upload-status">
+                {"UPLOADED: " + (props.treeNode.gid !== undefined)}
+              </div>
+              {props.treeNode.size && (
+                <div className="node-element node-last-modified">
+                  {"SIZE: " + abbreviateSize(props.treeNode.size)}
+                </div>
+              )}
+            </div>
           </div>
+          {uploadProgress !== undefined &&
+            <div className="node-content-right">
+              <ProgressBar progress={uploadProgress}></ProgressBar>
+            </div>}
         </div>
       </li>
     </div>

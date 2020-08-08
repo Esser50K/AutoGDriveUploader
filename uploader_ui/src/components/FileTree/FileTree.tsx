@@ -158,7 +158,7 @@ const FileTree = () => {
                 uploadStatusTree={uploadStatusTree}
               ></FileTreeFolder>
             ) : (
-                <FileTreeFile key={node.id} treeNode={node}></FileTreeFile>
+                <FileTreeFile key={node.id} treeNode={node} uploadStatusTree={uploadStatusTree}></FileTreeFile>
               );
           })}
         </>

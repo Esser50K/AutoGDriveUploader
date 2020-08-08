@@ -105,15 +105,20 @@ const FileTreeFolder = (props: FileTreeProps) => {
           className="node-icon"
         />
         <div className="node-content">
-          <div className="node-content-title-line">
-            <div className="node-element node-title">
-              <b>{props.treeNode.name}</b>
+          <div className="node-content-left">
+
+            <div className="node-content-title-line">
+              <div className="node-element node-title">
+                <b>{props.treeNode.name}</b>
+              </div>
+            </div>
+            <div className="node-content-status-line">
+              <div className="node-element node-upload-status">
+                {"UPLOADED: " + (props.treeNode.gid !== undefined)}
+              </div>
             </div>
           </div>
-          <div className="node-content-status-line">
-            <div className="node-element node-upload-status">
-              {"UPLOADED: " + (props.treeNode.gid !== undefined)}
-            </div>
+          <div className="node-content-right">
           </div>
         </div>
       </li>
@@ -128,7 +133,7 @@ const FileTreeFolder = (props: FileTreeProps) => {
               uploadStatusTree={props.uploadStatusTree}
             ></FileTreeFolder>
           ) : (
-              <FileTreeFile key={node.id} treeNode={node}></FileTreeFile>
+              <FileTreeFile key={node.id} treeNode={node} uploadStatusTree={props.uploadStatusTree}></FileTreeFile>
             );
         })}
         {loadingFolderIds.has(props.treeNode.id) && <div className={`folder-loader ${isOpen && "show"}`}>

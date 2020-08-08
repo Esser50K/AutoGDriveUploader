@@ -64,6 +64,8 @@ class UploaderInfoServer:
                 self.watcher.set_current_tree(cmd["tree_idx"])
                 for client in self.full_tree_clients.values():
                     await client.send(json.dumps({"idx": self.watcher.current_tree_idx, "names": self.watcher.all_tree_names(), "tree": self.watcher.current_tree()}))
+                Thread(target=DriveService().list_folder_deep, args=(
+                    self.watcher.base_gid, self.watcher.base_gid, self.remote_notification_queue, 2,)).start()
             elif cmd["type"] == "SYNC_FOLDER":
                 if "id" not in cmd.keys():
                     continue
@@ -136,23 +138,6 @@ class UploaderInfoServer:
                                                  "in_failure": notification.in_failure}
 
         filedoc = notification.file_doc
-
-        """
-        TODO: Somehow notify of local file deletion so it can be rendered without scanning the remote tree
-        I should probbably populate the remote tree automatically with the files/folders that have a gid
-
-        if notification.type == FILE_DELETED_NOTIFICATION \
-                and "gid" in filedoc.keys() \
-                and filedoc["gid"] not in self.remote_tree_status.keys():
-            current_tree = self.watcher.current_tree()
-            parent = current_tree()[
-                filedoc["pid"]] if filedoc["pid"] in current_tree() else ""
-            self.remote_tree_status[filedoc["gid"]] = {
-                "id": filedoc["gid"],
-                "name": filedoc["name"],
-                "mimeType": filedoc["mimeType"],
-                "gpid": }
-        """
 
     def parse_and_apply_remote_notification(self, notification: RemoteScanNotification):
         self.remote_tree_status = notification.remote_files
