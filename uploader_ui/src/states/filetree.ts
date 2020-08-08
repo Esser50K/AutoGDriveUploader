@@ -59,5 +59,10 @@ export const remoteGidToNodeState = atom<{
 
 export const selectedSyncFolderState = atom<number>({
   key: "selectedSyncFolderState",
-  default: 0
+  default: -1
+})
+
+export const availableSyncFoldersState = atom<string[]>({
+  key: "availableSyncFoldersState",
+  default: []
 })

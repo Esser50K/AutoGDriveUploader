@@ -3,7 +3,7 @@ import FileTree from "../components/FileTree/FileTree";
 import "./FileTreePage.css";
 import NavBar from "../components/NavBar/NavBar";
 import { useRecoilState } from "recoil";
-import { selectedSyncFolderState, openFileState, selectedFolderIdState } from "../states/filetree";
+import { selectedSyncFolderState, openFileState, selectedFolderIdState, availableSyncFoldersState } from "../states/filetree";
 
 const commandSocket = new WebSocket("ws://localhost:6900/command");
 
@@ -11,7 +11,7 @@ const FileTreePage = () => {
     const [selectedSyncFolder] = useRecoilState(selectedSyncFolderState);
     const [openFileId, setOpenFileId] = useRecoilState(openFileState);
     const [selectedFolderId] = useRecoilState(selectedFolderIdState);
-
+    const [availableSyncFolders] = useRecoilState(availableSyncFoldersState);
     useEffect(() => {
         if (commandSocket.readyState !== commandSocket.OPEN) {
             return
@@ -39,7 +39,7 @@ const FileTreePage = () => {
 
     return (
         <div className="app">
-            <NavBar title="UPLOADER" syncFolders={["Youtubing", "GoPro"]}></NavBar>
+            <NavBar title="UPLOADER" syncFolders={availableSyncFolders}></NavBar>
             <div className="filetree-container">
                 <FileTree></FileTree>
             </div>

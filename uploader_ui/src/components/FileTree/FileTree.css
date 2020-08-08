@@ -53,7 +53,8 @@
 
 .node-content {
   display: flex;
-  margin: 5px 0;
+  flex-direction: column;
+  justify-content: space-around;
 }
 
 .node-content-title-line {
