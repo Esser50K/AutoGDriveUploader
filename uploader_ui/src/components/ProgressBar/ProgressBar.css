@@ -10,5 +10,5 @@
   border-radius: 10px;
   padding: 5px;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
 }
