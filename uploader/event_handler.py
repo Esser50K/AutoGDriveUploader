@@ -70,6 +70,12 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
                 if self.event_queue.get() is None:
                     break
 
+    def clean_tree(self):
+        to_clean = list(
+            filter(lambda x: "downloading" in x, self.current_tree.values()))
+        for node in to_clean:
+            del self.current_tree[str(node["id"])]
+
     def process_event(self):
         old_tree = deepcopy(self.current_tree)
         tree_analysis = self.analyze_tree()
@@ -110,8 +116,6 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
             local_parent_node = local_gid_to_node[remote_parent_node["id"]]
             local_path = local_parent_node["path"] + "/" + \
                 local_parent_node["name"] + "/" + remote_file_node["name"]
-            print("DEFINITELY HERE:", {"name": remote_file_node["name"], "path": local_path,
-                                       "folder": False, "gid": file_gid})
             return local_parent_node, [
                 {"name": remote_file_node["name"], "path": local_path,
                     "folder": False, "gid": file_gid}
@@ -174,12 +178,12 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
             # create empty file just to get a inode
             tmp_path = gettempdir() + "/" + to_create_file["name"]
             open(tmp_path, "w").close()
-            file_id = os.stat(tmp_path).st_ino
+            file_id = str(os.stat(tmp_path).st_ino)
             to_create_file["id"] = str(file_id)
-            self.current_tree[str(file_id)] = file_doc(
+            self.current_tree[file_id] = file_doc(
                 file_id, folder_pid, to_create_file["name"], to_create_file["path"], 0, 0)
-            self.current_tree[str(file_id)]["gid"] = file_gid
-            self.current_tree[str(file_id)]["downloading"] = True
+            self.current_tree[file_id]["gid"] = file_gid
+            self.current_tree[file_id]["downloading"] = True
         self.save_tree(self.current_tree)
 
         # create deepest folder

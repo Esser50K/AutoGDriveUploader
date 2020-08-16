@@ -63,11 +63,11 @@ const FileTreeFile = (props: FileTreeProps) => {
                 <b>{props.treeNode.name}</b>
               </div>
               <div className="node-properties">
-                {props.treeNode.size && (
+                {props.treeNode.size ? (
                   <div className="node-element node-property">
-                    {"SIZE: " + abbreviateSize(props.treeNode.size)}
+                    {props.treeNode.size !== 0 && <em>{abbreviateSize(props.treeNode.size)}</em>}
                   </div>
-                )}
+                ) : ""}
               </div>
             </div>
             <div className="node-content-action-line">
@@ -75,7 +75,7 @@ const FileTreeFile = (props: FileTreeProps) => {
                 <ActionButton text="DOWNLOAD" callback={() => { setDownloadFileId(props.treeNode.gid!) }}></ActionButton>}
             </div>
           </div>
-          {uploadProgress !== undefined && uploadProgress !== 100 &&
+          {uploadProgress !== undefined && uploadProgress !== 100 && uploadProgress !== 0 &&
             <div className="node-content-right">
               <ProgressBar progress={uploadProgress || 0}></ProgressBar>
             </div>}

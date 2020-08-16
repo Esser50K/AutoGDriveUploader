@@ -30,9 +30,6 @@ def get_base_folder_id():
     return folder_id
 
 
-ROOT_PATH = "/Users/esser420/Youtubing"
-#ROOT_PATH = "/Users/esser420/Pictures/GoPro"
-
 ROOT_PATHS = ["/Users/esser420/Youtubing",
               "/Users/esser420/Pictures/GoPro"]
 
@@ -48,6 +45,7 @@ if __name__ == "__main__":
         remote_file_sync_notifications = Queue()
         directory_watcher = DirectoryWatcher(
             base_gid, ROOT_PATHS, notification_queue)
+        directory_watcher.clean_trees()
         server = UploaderInfoServer(
             "localhost", 6900, directory_watcher, remote_file_sync_notifications, loop)
         server.start()

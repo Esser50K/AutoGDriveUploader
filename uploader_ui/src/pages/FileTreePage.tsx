@@ -3,7 +3,7 @@ import FileTree from "../components/FileTree/FileTree";
 import "./FileTreePage.css";
 import NavBar from "../components/NavBar/NavBar";
 import { useRecoilState, useSetRecoilState } from "recoil";
-import { selectedSyncFolderState, openFileState, selectedFolderIdState, availableSyncFoldersState, loadingFolderIdState, downloadFileIdState } from "../states/filetree";
+import { selectedSyncFolderState, openFileState, selectedFolderIdState, availableSyncFoldersState, loadingFolderIdState, downloadFileIdState, downloadFolderIdState } from "../states/filetree";
 
 const commandSocket = new WebSocket("ws://localhost:6900/command");
 
@@ -13,6 +13,7 @@ const FileTreePage = () => {
     const [selectedFolderId] = useRecoilState(selectedFolderIdState);
     const [availableSyncFolders] = useRecoilState(availableSyncFoldersState);
     const [downloadFileId] = useRecoilState(downloadFileIdState);
+    const [downloadFolderId] = useRecoilState(downloadFolderIdState);
     const setLoadingFolderIds = useSetRecoilState(loadingFolderIdState);
 
     // change sync directories
@@ -56,6 +57,15 @@ const FileTreePage = () => {
 
         commandSocket.send(JSON.stringify({ "type": "DOWNLOAD_FILE", "id": downloadFileId }))
     }, [downloadFileId])
+
+    // download remote folder on selection
+    useEffect(() => {
+        if (commandSocket.readyState !== commandSocket.OPEN || downloadFolderId === "") {
+            return
+        }
+
+        commandSocket.send(JSON.stringify({ "type": "DOWNLOAD_FOLDER", "id": downloadFolderId }))
+    }, [downloadFolderId])
 
     return (
         <div className="app">

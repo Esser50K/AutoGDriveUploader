@@ -21,8 +21,11 @@ import {
   currentRootState,
   selectedFolderIdState,
   loadingFolderIdState,
-  remoteNodeState
+  remoteNodeState,
+  downloadFolderIdState
 } from "../../states/filetree";
+import { FileLocation } from "./consts";
+import ActionButton from "./ActionButton";
 
 interface FileTreeProps {
   treeNode: FileTreeNodeModel;
@@ -43,6 +46,7 @@ const FileTreeFolder = (props: FileTreeProps) => {
   const [parentToChildren] = useRecoilState(parentToChildrenState);
   const [remoteParentToChildren] = useRecoilState(remoteParentToChildrenState);
   const [gidToNode] = useRecoilState(gidToNodeState);
+  const setDownloadFolderId = useSetRecoilState(downloadFolderIdState);
 
   const onClick = (event: MouseEvent<HTMLLIElement, globalThis.MouseEvent>) => {
     event.preventDefault();
@@ -134,11 +138,15 @@ const FileTreeFolder = (props: FileTreeProps) => {
               <div className="node-element node-title">
                 <b>{props.treeNode.name}</b>
               </div>
+              <div className="node-properties">
+                <div className="node-element node-upload-status">
+                  <em>{childrenCount > 0 ? `Contains ${childrenCount} children` : 'Folder is empty'}</em>
+                </div>
+              </div>
             </div>
             <div className="node-content-action-line">
-              <div className="node-element node-upload-status">
-                {childrenCount >= 0 && <em>{`Contains ${childrenCount} children`}</em>}
-              </div>
+              {location === FileLocation.OnlyRemote &&
+                <ActionButton text="DOWNLOAD" callback={() => { setDownloadFolderId(props.treeNode.gid!) }}></ActionButton>}
             </div>
           </div>
           <div className="node-content-right">
