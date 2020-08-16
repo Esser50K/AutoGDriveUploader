@@ -66,3 +66,12 @@ class DirectoryWatcher(Thread):
             t = Thread(target=event_handler.process_event)
             t.daemon = True
             t.start()
+
+    def prepare_download(self, file_gid, remote_tree):
+        event_handler = self.event_handlers[self.current_tree_idx]
+        return event_handler.prepare_download(file_gid, remote_tree)
+
+    def download_file(self, file_gid, to_create_file):
+        event_handler = self.event_handlers[self.current_tree_idx]
+        event_handler.download_file(
+            file_gid, to_create_file)

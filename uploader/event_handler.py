@@ -3,22 +3,25 @@ import json
 from time import time
 from copy import deepcopy
 from queue import Queue
+from tempfile import gettempdir
 from uploader.hashutils import hash_file, hash_string
 from concurrent.futures import ThreadPoolExecutor
 from threading import Thread, Lock
 from watchdog.events import FileSystemEventHandler
 from uploader.drive_service import DriveService
 from uploader.notification import *
+from pprint import pprint
 
 FILES_BLACKLIST = set([".DS_Store", "__Sync__"])
 PREFIX_BLACKLIST = set([".tmp"])
 
 
-def folder_doc(id, pid, name):
+def folder_doc(id, pid, name, path):
     return {"id": id,
             "pid": pid,
             "name": name,
-            "folder": True}
+            "folder": True,
+            "path": path}
 
 
 def file_doc(id, pid, name, path, size, last_modified):
@@ -41,6 +44,7 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
         self.current_tree = self.load_last_tree()
         self.event_queue = Queue()
         self.uploader = ThreadPoolExecutor(max_workers=10)
+        self.downloader = ThreadPoolExecutor(max_workers=10)
         self.service = DriveService()
         self.tree_lock = Lock()
         self.scheduled_for_upload = set()
@@ -48,7 +52,6 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
         super().__init__()
 
     def on_any_event(self, event):
-        print("EVENT YO")
         self.event_queue.put(event)
 
     def stop(self):
@@ -59,7 +62,8 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
         # processes queue but debounces the changes since it always goes over the whole tree
         while True:
             try:
-                self.event_queue.get(timeout=2)
+                if self.event_queue.get(timeout=2) is None:
+                    break
             except:
                 print("processing event")
                 self.process_event()
@@ -89,6 +93,122 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
         for file_id in tree_analysis["deleted_files"]:
             self.notification_queue.put(
                 FileDeletedNotification(old_tree[file_id]))
+
+    def remote_to_local_path(self, file_gid, remote_tree):
+        if file_gid not in remote_tree.keys():
+            return
+
+        remote_file_node = remote_tree[file_gid]
+        if "gpid" not in remote_file_node.keys():
+            return
+
+        local_gid_to_node = {
+            node["gid"]: node for node in self.current_tree.values() if "gid" in node.keys()}
+
+        remote_parent_node = remote_tree[remote_file_node["gpid"]]
+        if remote_parent_node["id"] in local_gid_to_node.keys():
+            local_parent_node = local_gid_to_node[remote_parent_node["id"]]
+            local_path = local_parent_node["path"] + "/" + \
+                local_parent_node["name"] + "/" + remote_file_node["name"]
+            print("DEFINITELY HERE:", {"name": remote_file_node["name"], "path": local_path,
+                                       "folder": False, "gid": file_gid})
+            return local_parent_node, [
+                {"name": remote_file_node["name"], "path": local_path,
+                    "folder": False, "gid": file_gid}
+            ]
+
+        path_to_append = [remote_parent_node["name"]]
+        nodes_to_create = [remote_parent_node]
+        while True:
+            remote_parent_node = remote_tree[remote_parent_node["gpid"]]
+            path_to_append.append(remote_parent_node["name"])
+            nodes_to_create.append(remote_parent_node)
+            if remote_parent_node["id"] in local_gid_to_node.keys():
+                break
+
+        path_to_append = path_to_append[::-1]
+        nodes_to_create = nodes_to_create[::-1]
+        local_parent_node = local_gid_to_node[remote_parent_node["id"]]
+        print("PATH:", path_to_append)
+        print("NODES:", nodes_to_create)
+        print("LOCAL PARENT:", local_parent_node)
+        nodes_to_create_info = []
+        for i in range(len(nodes_to_create)):
+            node = nodes_to_create[i]
+            path = local_parent_node["path"]
+            if i > 0:
+                path += "/" + "/".join(path_to_append[:i])
+            print("PATH FOR:", node["name"], path)
+            nodes_to_create_info.append(
+                {"name": node["name"], "path": path, "folder": True, "gid": node["id"]})
+
+        path = local_parent_node["path"] + "/" + \
+            "/".join(path_to_append) + "/" + remote_file_node["name"]
+        nodes_to_create_info.append(
+            {"name": remote_file_node["name"], "path": path, "folder": False, "gid": file_gid})
+
+        return local_parent_node, nodes_to_create_info
+
+    def prepare_download(self, file_gid, remote_tree):
+        local_parent, to_create = self.remote_to_local_path(
+            file_gid, remote_tree)
+        to_create_folders = [node for node in to_create if node["folder"]]
+        to_create_file = list(filter(
+            lambda node: not node["folder"], to_create))
+        if len(to_create_file) != 1:
+            return
+
+        to_create_file = to_create_file[0]
+        folder_pid = local_parent["id"]
+        with self.tree_lock:
+            for folder in to_create_folders:
+                folder_id = hash_string(
+                    (folder["path"] + "/" + folder["name"]).encode("utf-8"))
+                if folder_id in self.current_tree.keys():
+                    continue
+                self.current_tree[folder_id] = folder_doc(
+                    folder_id, folder_pid, folder["name"], folder["path"])
+                self.current_tree[folder_id]["gid"] = folder["gid"]
+                folder_pid = folder_id
+
+            # create empty file just to get a inode
+            tmp_path = gettempdir() + "/" + to_create_file["name"]
+            open(tmp_path, "w").close()
+            file_id = os.stat(tmp_path).st_ino
+            to_create_file["id"] = str(file_id)
+            self.current_tree[str(file_id)] = file_doc(
+                file_id, folder_pid, to_create_file["name"], to_create_file["path"], 0, 0)
+            self.current_tree[str(file_id)]["gid"] = file_gid
+            self.current_tree[str(file_id)]["downloading"] = True
+        self.save_tree(self.current_tree)
+
+        # create deepest folder
+        if len(to_create_folders) > 0:
+            os.makedirs(to_create_folders[-1]["path"] + "/" +
+                        to_create_folders[-1]["name"], exist_ok=True)
+        os.rename(tmp_path, to_create_file["path"])
+
+        return to_create_file
+
+    def download_file(self, file_gid, to_create_file):
+        download_progress_notification = Queue()
+
+        def notify_progress():
+            status = download_progress_notification.get()
+            while status:
+                self.notification_queue.put(
+                    FileDownloadProgressNotification(
+                        deepcopy(to_create_file),
+                        status["progress"]),
+                    False)
+                status = download_progress_notification.get()
+
+        Thread(target=notify_progress).start()
+
+        self.service.download_file(
+            file_gid, to_create_file["path"], download_progress_notification)
+        self.current_tree[to_create_file["id"]]["downloading"] = False
+        self.save_tree(self.current_tree)
 
     def add_gid(self, doc_id, gid):
         if doc_id not in self.current_tree.keys():
@@ -131,7 +251,7 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
                 parent_id = hash_string(folder_path.encode("utf-8"))
                 folder_name = root.split(os.sep)[-1]
                 new_tree[folder_id] = folder_doc(
-                    folder_id, parent_id, folder_name)
+                    folder_id, parent_id, folder_name, folder_path)
 
                 for filename in files:
                     if self.check_blacklists(filename):
@@ -149,19 +269,23 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
                         new_tree[str(file_id)] = file_doc(
                             file_id, folder_id, filename, file_path, file_size, last_modified)
                     except Exception as e:
-                        print("error on getting info for file:", e)
+                        # print("error on getting info for file:", e)
                         self.broken_files.add(file_path)
             except Exception as e:
                 print("error while walking through tree:", e)
         return new_tree
 
     def analyze_tree(self):
+        dowloading_files = set(filter(
+            lambda k: "downloading" in self.current_tree[k], self.current_tree.keys()))
         new_tree = self.get_tree(self.root_path)
         new_files = new_tree.keys() - self.current_tree.keys()
-        deleted_files = self.current_tree.keys() - new_tree.keys()
+        deleted_files = set(filter(
+            lambda x: x not in dowloading_files, self.current_tree.keys() - new_tree.keys()))
         new_folders = set([f for f in new_files if new_tree[f]["folder"]] +
                           [f for f in self.current_tree.keys() if self.current_tree[f]["folder"] and "gid" not in self.current_tree[f].keys()])
-        new_files = new_files - new_folders
+        new_files = set(
+            filter(lambda x: "gid" not in x, new_files - new_folders))
         still_old = self.current_tree.keys() & new_tree.keys()
 
         renamed_files = []
@@ -172,10 +296,10 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
             if self.current_tree[k]["name"] != new_tree[k]["name"]:
                 renamed_files.append(k)
 
-            if self.current_tree[k]["pid"] != new_tree[k]["pid"]:
+            if self.current_tree[k]["pid"] != new_tree[k]["pid"] and not self.current_tree[k]["folder"]:
                 moved_files.append(k)
 
-            if "last_modified" in self.current_tree[k].keys() and \
+            if "last_modified" in self.current_tree[k].keys() and k not in dowloading_files and \
                int(self.current_tree[k]["last_modified"]) != int(new_tree[k]["last_modified"]):
                 modified_files.append(k)
 
@@ -186,6 +310,11 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
         for k, v in self.current_tree.items():
             if k in new_tree.keys() and "gid" in self.current_tree[k].keys():
                 new_tree[k]["gid"] = self.current_tree[k]["gid"]
+
+        # add the still downloading flag to the new tree elements
+        for k in dowloading_files:
+            if self.current_tree[k]["downloading"]:
+                new_tree[k] = self.current_tree[k]
 
         return {
             "old_tree": self.current_tree,
@@ -251,7 +380,6 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
         folder_doc = current_tree[file_doc["pid"]]
         print("uploading file %s to folder %s" %
               (file_doc["name"], folder_doc["name"]))
-        is_update = False
         try:
             progress_queue = Queue()
 
@@ -268,13 +396,13 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
 
             Thread(target=notify_progress).start()
             file_gid = file_doc["gid"] if "gid" in file_doc.keys() else None
-            is_update = True if file_gid else False
             result = self.service.upload_file(file_id, file_doc["name"], file_doc["path"],
                                               file_gid, folder_doc["gid"], progress_queue=progress_queue)
             print("Upload of %s Complete!" % file_doc["name"])
         except Exception as e:
             print("unrecoverable error uploading file %s:" %
                   file_doc["name"], e)
+            progress_queue.put(None)
             return
 
         if not result:

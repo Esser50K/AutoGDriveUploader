@@ -21,6 +21,7 @@ import {
   currentRootState,
   selectedFolderIdState,
   loadingFolderIdState,
+  remoteNodeState
 } from "../../states/filetree";
 
 interface FileTreeProps {
@@ -32,7 +33,9 @@ interface FileTreeProps {
 
 const FileTreeFolder = (props: FileTreeProps) => {
   const [children, setChildren] = useState<FileTreeNodeModel[]>([]);
+  const [childrenCount, setChildrenCount] = useState(-1);
   const [currentNodesState, setNodesState] = useRecoilState(nodesState);
+  const [gidNodeState, setGidNodeState] = useRecoilState(remoteNodeState);
   const [selectedNodeId, setSelectedNodeId] = useRecoilState(selectedNodeState);
   const setRootId = useSetRecoilState(currentRootState);
   const setSelectedFolderId = useSetRecoilState(selectedFolderIdState);
@@ -46,10 +49,17 @@ const FileTreeFolder = (props: FileTreeProps) => {
     event.stopPropagation();
     setSelectedNodeId(() => props.treeNode.id)
     setSelectedFolderId(() => props.treeNode.id)
-    setLoadingFolderIds((oldLoadingFolderIds) => {
-      oldLoadingFolderIds.add(props.treeNode.id);
-      return oldLoadingFolderIds;
-    })
+    setGidNodeState((oldNodesState) => {
+      if (!props.treeNode.gid) {
+        return oldNodesState
+      }
+
+      const newNodesState = { ...oldNodesState };
+      const newCurrentNodeState = { ...oldNodesState[props.treeNode.gid] };
+      newCurrentNodeState.open = !newCurrentNodeState.open
+      newNodesState[props.treeNode.gid] = newCurrentNodeState;
+      return newNodesState;
+    });
     setNodesState((oldNodesState) => {
       const newNodesState = { ...oldNodesState };
       const newCurrentNodeState = { ...oldNodesState[props.treeNode.id] };
@@ -68,7 +78,7 @@ const FileTreeFolder = (props: FileTreeProps) => {
   const location = getLocation(props.treeNode);
   const background = getBackgroundColor(location);
   const nodeSelected = props.treeNode.id === selectedNodeId ? "node-selected" : "";
-  const isOpen = currentNodesState[props.treeNode.id]?.open;
+  const isOpen = currentNodesState[props.treeNode.id]?.open || gidNodeState[props.treeNode.gid || ""]?.open;
   const imageUrl = isOpen ? "open-folder.png" : "closed-folder.png";
 
   useEffect(() => {
@@ -85,8 +95,22 @@ const FileTreeFolder = (props: FileTreeProps) => {
         )
         : []
       setChildren(nextChildren)
+      isOpen && setChildrenCount(nextChildren.length)
     })()
   }, [isOpen, props, parentToChildren, remoteParentToChildren, gidToNode])
+
+  useEffect(() => {
+    const nextChildren = findChildrenWithMap(
+      props.treeNode.id,
+      props.treeNode.gid || "",
+      props.fullTree,
+      props.remoteTree,
+      parentToChildren,
+      remoteParentToChildren,
+      gidToNode
+    )
+    setChildrenCount(nextChildren.length)
+  }, [])
 
   return (
     <div className="node-container folder-container">
@@ -106,15 +130,14 @@ const FileTreeFolder = (props: FileTreeProps) => {
         />
         <div className="node-content">
           <div className="node-content-left">
-
             <div className="node-content-title-line">
               <div className="node-element node-title">
                 <b>{props.treeNode.name}</b>
               </div>
             </div>
-            <div className="node-content-status-line">
+            <div className="node-content-action-line">
               <div className="node-element node-upload-status">
-                {"UPLOADED: " + (props.treeNode.gid !== undefined)}
+                {childrenCount >= 0 && <em>{`Contains ${childrenCount} children`}</em>}
               </div>
             </div>
           </div>

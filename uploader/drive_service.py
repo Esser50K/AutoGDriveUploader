@@ -6,6 +6,7 @@ import json
 from uploader.utils import find_children
 from copy import deepcopy
 from google.auth.transport.requests import Request
+from googleapiclient.http import MediaIoBaseDownload
 from googleapiclient.discovery import build, MediaFileUpload, HttpError
 from google_auth_oauthlib.flow import InstalledAppFlow
 from queue import Queue
@@ -46,21 +47,23 @@ def build_request(http, *args, **kwargs):
 class DriveService:
     instance = None
 
-    def __init__(self, creds=None):
-        if not DriveService.instance:
-            DriveService.instance = build(
-                'drive', 'v3', credentials=creds, requestBuilder=build_request)
+    def __init__(self, base_gid="", creds=None):
+        if DriveService.instance:
+            return
+
+        DriveService.instance = build(
+            'drive', 'v3', credentials=creds, requestBuilder=build_request)
 
         self.cancel_uploads = {}
         self.all_items = {}
 
-    def list_folder_deep(self, filename, folder_gid, notification_queue=Queue(), depth=9999, all_items={}):
-        last_remote_scan_file = filename + "_scan.json"
-        if os.path.isfile(last_remote_scan_file):
-            with open(last_remote_scan_file, "r") as last_scan:
-                all_items = json.loads(last_scan.read())
+        self.last_remote_scan_file = base_gid + "_scan.json"
+        if os.path.isfile(self.last_remote_scan_file):
+            with open(self.last_remote_scan_file, "r") as last_scan:
+                self.all_items = json.loads(last_scan.read())
 
-        return self._list_folder_deep(folder_gid, last_remote_scan_file, notification_queue, depth, all_items)
+    def list_folder_deep(self, folder_gid, notification_queue=Queue(), depth=9999, all_items={}):
+        return self._list_folder_deep(folder_gid, self.last_remote_scan_file, notification_queue, depth, self.all_items)
 
     def _list_folder_deep(self, folder_gid, filename, notification_queue=Queue(), depth=9999, all_items={}):
         if depth == 0:
@@ -189,14 +192,29 @@ class DriveService:
     def move_file(self, old_doc, new_doc, old_tree, current_tree):
         file_id = new_doc["id"]
         file_gid = old_doc["gid"]
-        file = self.service.files().get(fileId=file_gid,
-                                        fields='parents').execute()
+        file = self.files().get(fileId=file_gid,
+                                fields='parents').execute()
         old_folder_gids = ",".join(file.get('parents'))
         new_folder_gid = current_tree[current_tree[file_id]["pid"]]["gid"]
-        file = self.service.files().update(fileId=file_gid,
-                                           addParents=new_folder_gid,
-                                           removeParents=old_folder_gids,
-                                           fields='id, parents').execute()
+        file = self.files().update(fileId=file_gid,
+                                   addParents=new_folder_gid,
+                                   removeParents=old_folder_gids,
+                                   fields='id, parents').execute()
+
+    def download_file(self, file_id, destination_path, progress_queue=Queue()):
+        request = self.files().get_media(fileId=file_id)
+        with open(destination_path, "wb") as fh:
+            downloader = MediaIoBaseDownload(fh, request)
+            done = False
+            while done is False:
+                try:
+                    status, done = downloader.next_chunk()
+                    if status:
+                        progress_queue.put({"progress": status.progress()})
+                except Exception as e:
+                    print("Error downloading File %s: %s" % (file_id, e))
+                    progress_queue.put({"progress": -1})
+                    return
 
     def is_canceled(self, file_id):
         return file_id in self.cancel_uploads.keys() and self.cancel_uploads[file_id]

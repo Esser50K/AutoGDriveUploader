@@ -10,6 +10,11 @@ export const nodesState = atom<{ [key: string]: NodeState }>({
   default: {},
 });
 
+export const remoteNodeState = atom<{ [key: string]: NodeState }>({
+  key: "remoteNodeState",
+  default: {},
+});
+
 export const selectedNodeState = atom({
   key: "selectedNodeState",
   default: "",
@@ -28,6 +33,11 @@ export const selectedFolderIdState = atom({
 export const loadingFolderIdState = atom({
   key: "loadingFoldersIdState",
   default: new Set(),
+});
+
+export const downloadFileIdState = atom({
+  key: "downloadFileIdState",
+  default: "",
 });
 
 export const currentRootState = atom({

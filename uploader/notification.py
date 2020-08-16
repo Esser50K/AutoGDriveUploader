@@ -1,6 +1,7 @@
 # Notification Types
 FILE_CREATED_NOTIFICATION = "FILE_CREATED"
 FILE_UPLOAD_PROGRESS_NOTIFICATION = "FILE_UPLOAD_PROGRESS"
+FILE_DOWNLOAD_PROGRESS_NOTIFICATION = "FILE_DOWNLOAD_PROGRESS"
 FILE_UPDATED_NOTIFICATION = "FILE_UPDATED"
 FILE_MOVED_NOTIFICATION = "FILE_MOVED"
 FILE_DELETED_NOTIFICATION = "FILE_DELETED"
@@ -33,6 +34,12 @@ class FileUploadProgressNotification(Notification):
         super().__init__(FILE_UPLOAD_PROGRESS_NOTIFICATION, file_doc)
         self.progress = progress
         self.in_failure = in_failure
+
+
+class FileDownloadProgressNotification(Notification):
+    def __init__(self, file_doc, progress):
+        super().__init__(FILE_DOWNLOAD_PROGRESS_NOTIFICATION, file_doc)
+        self.progress = progress
 
 
 class FileMovedNotification(Notification):
