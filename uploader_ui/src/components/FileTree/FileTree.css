@@ -59,9 +59,9 @@
 
 .node-content-left {
   display: flex;
+  flex-grow: 1;
   flex-direction: column;
   justify-content: space-around;
-  width: 400px;
 }
 
 .node-content-right {
@@ -75,7 +75,7 @@
   display: flex;
 }
 
-.node-content-status-line {
+.node-content-action-line {
   display: flex;
 }
 
@@ -83,14 +83,19 @@
   padding: 0 5px;
 }
 
+.node-properties {
+  display: flex;
+  flex-grow: 1;
+}
+
 .node-title {
   font-size: 15px;
-  width: 400px;
+  max-width: 400px;
   text-overflow: ellipsis;
   white-space: nowrap;
   overflow: hidden;
 
-  transition: opacity 0.5s ease-in-out;
+  z-index: 1;
 }
 
 .node-title:hover {
@@ -103,7 +108,7 @@
   color: antiquewhite;
   padding: 3px;
   margin-left: -3px;
-  opacity: 85%;
+  margin-right: -3px;
 }
 
 .node-icon {

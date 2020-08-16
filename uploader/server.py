@@ -3,6 +3,7 @@ import json
 import asyncio
 import subprocess
 import platform
+import traceback
 from queue import Queue
 from uploader.notification import *
 from uploader.drive_service import DriveService
@@ -17,7 +18,7 @@ class UploaderInfoServer:
         self.loop = event_loop
         self.server_start = serve(self.root_handler, host, port)
         self.current_tree_status = {}
-        self.remote_tree_status = {}
+        self.remote_tree_status = DriveService().all_items
         self.watcher = watcher
         self.notification_queue = watcher.notification_queue
         self.remote_notification_queue = remote_scan_notifications
@@ -36,7 +37,7 @@ class UploaderInfoServer:
         elif uri.endswith("/status"):
             with self.notification_lock:
                 self.tree_status_clients[websocket.remote_address] = websocket
-            await websocket.send(json.dumps(self.remote_tree_status))
+            await websocket.send(json.dumps(self.current_tree_status))
         elif uri.endswith("/remote"):
             with self.notification_lock:
                 self.remote_tree_status_clients[websocket.remote_address] = websocket
@@ -58,42 +59,64 @@ class UploaderInfoServer:
 
     async def handle_commands(self, websocket: WS):
         while not websocket.closed:
-            command = await websocket.recv()
-            cmd = json.loads(command)
-            if cmd["type"] == "CHANGE_DIR":
-                self.watcher.set_current_tree(cmd["tree_idx"])
-                for client in self.full_tree_clients.values():
-                    await client.send(json.dumps({"idx": self.watcher.current_tree_idx, "names": self.watcher.all_tree_names(), "tree": self.watcher.current_tree()}))
-                Thread(target=DriveService().list_folder_deep, args=(
-                    self.watcher.base_gid, self.watcher.base_gid, self.remote_notification_queue, 2,)).start()
-            elif cmd["type"] == "SYNC_FOLDER":
-                if "id" not in cmd.keys():
-                    continue
-
-                if str(cmd["id"]) in self.watcher.current_tree().keys() and "gid" in self.watcher.current_tree()[str(cmd["id"])]:
-                    gid = self.watcher.current_tree()[str(cmd["id"])]["gid"]
+            try:
+                command = await websocket.recv()
+                cmd = json.loads(command)
+                if cmd["type"] == "CHANGE_DIR":
+                    self.watcher.set_current_tree(cmd["tree_idx"])
+                    for client in self.full_tree_clients.values():
+                        await client.send(json.dumps({"idx": self.watcher.current_tree_idx, "names": self.watcher.all_tree_names(), "tree": self.watcher.current_tree()}))
                     Thread(target=DriveService().list_folder_deep, args=(
-                        self.watcher.base_gid, gid, self.remote_notification_queue, 1,)).start()
-                    continue
+                        self.watcher.base_gid, self.remote_notification_queue, 2,)).start()
+                elif cmd["type"] == "SYNC_FOLDER":
+                    if "id" not in cmd.keys():
+                        continue
 
-                if str(cmd["id"]) in self.remote_tree_status.keys():
-                    gid = self.remote_tree_status[str(cmd["id"])]["id"]
-                    Thread(target=DriveService().list_folder_deep, args=(
-                        self.watcher.base_gid, gid, self.remote_notification_queue, 1,)).start()
-                    continue
+                    if str(cmd["id"]) in self.watcher.current_tree().keys() and "gid" in self.watcher.current_tree()[str(cmd["id"])]:
+                        gid = self.watcher.current_tree()[
+                            str(cmd["id"])]["gid"]
+                        Thread(target=DriveService().list_folder_deep, args=(
+                            gid, self.remote_notification_queue, 1,)).start()
+                        continue
 
-            elif cmd["type"] == "OPEN_FILE":
-                if "id" not in cmd.keys() or str(cmd["id"]) not in self.watcher.current_tree().keys():
-                    continue
+                    if str(cmd["id"]) in self.remote_tree_status.keys():
+                        gid = self.remote_tree_status[str(cmd["id"])]["id"]
+                        Thread(target=DriveService().list_folder_deep, args=(
+                            gid, self.remote_notification_queue, 1,)).start()
+                        continue
 
-                filepath = self.watcher.current_tree()[str(cmd["id"])]["path"]
-                if platform.system() == 'Darwin':
-                    subprocess.call(('open', filepath))
-                elif platform.system() == 'Windows':
-                    # pylint: disable=no-member
-                    os.startfile(filepath)
-                else:
-                    subprocess.call(('xdg-open', filepath))
+                elif cmd["type"] == "DOWNLOAD_FILE":
+                    if "id" not in cmd.keys():
+                        continue
+
+                    to_create_file = self.watcher.prepare_download(
+                        cmd["id"], self.remote_tree_status)
+                    Thread(target=self.download_and_notify,
+                           args=(cmd["id"], to_create_file,)).start()
+
+                    for client in self.full_tree_clients.values():
+                        await client.send(json.dumps({"idx": self.watcher.current_tree_idx, "names": self.watcher.all_tree_names(), "tree": self.watcher.current_tree()}))
+
+                elif cmd["type"] == "OPEN_FILE":
+                    if "id" not in cmd.keys() or str(cmd["id"]) not in self.watcher.current_tree().keys():
+                        continue
+
+                    filepath = self.watcher.current_tree()[
+                        str(cmd["id"])]["path"]
+                    if platform.system() == 'Darwin':
+                        subprocess.call(('open', filepath))
+                    elif platform.system() == 'Windows':
+                        # pylint: disable=no-member
+                        os.startfile(filepath)
+                    else:
+                        subprocess.call(('xdg-open', filepath))
+            except Exception as e:
+                print("Error occured responding to command:",
+                      e, traceback.format_exc())
+
+    def download_and_notify(self, id, to_create_file):
+        self.watcher.download_file(id, to_create_file)
+        self.notification_queue.put(FileCreatedNotification(to_create_file))
 
     def get_file_notifications(self):
         while True:
@@ -136,13 +159,19 @@ class UploaderInfoServer:
         elif notification.type == FILE_UPLOAD_PROGRESS_NOTIFICATION:
             self.current_tree_status[file_id] = {"progress": notification.progress,
                                                  "in_failure": notification.in_failure}
+        elif notification.type == FILE_DOWNLOAD_PROGRESS_NOTIFICATION:
+            self.current_tree_status[file_id] = {
+                "progress": notification.progress}
 
-        filedoc = notification.file_doc
+            if notification.progress == 1.0:
+                del self.current_tree_status[file_id]
 
     def parse_and_apply_remote_notification(self, notification: RemoteScanNotification):
         self.remote_tree_status = notification.remote_files
 
     def start(self):
+        # self.watcher.download_file(
+        #    "1xdsUAsK97KXyg5U7FJ1I4_8_35IMaJrj", self.remote_tree_status)
         self.file_notification_getter = Thread(
             target=self.get_file_notifications)
         self.file_notification_getter.start()

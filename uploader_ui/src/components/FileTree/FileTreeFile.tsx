@@ -7,9 +7,10 @@ import {
   getBackgroundColor,
 } from "../../utils/filetree";
 import { useRecoilState, useSetRecoilState } from "recoil";
-import { selectedNodeState, openFileState } from "../../states/filetree";
-import { iconFiletypeMap } from "./consts";
+import { selectedNodeState, openFileState, downloadFileIdState } from "../../states/filetree";
+import { iconFiletypeMap, FileLocation } from "./consts";
 import ProgressBar from "../ProgressBar/ProgressBar";
+import ActionButton from "./ActionButton";
 
 interface FileTreeProps {
   treeNode: FileTreeNodeModel;
@@ -18,6 +19,7 @@ interface FileTreeProps {
 
 const FileTreeFile = (props: FileTreeProps) => {
   const [selectedNodeId, setSelectedNodeId] = useRecoilState(selectedNodeState);
+  const setDownloadFileId = useSetRecoilState(downloadFileIdState);
   const openFile = useSetRecoilState(openFileState);
 
   const onClick = (event: React.MouseEvent<HTMLLIElement, MouseEvent>) => {
@@ -60,21 +62,22 @@ const FileTreeFile = (props: FileTreeProps) => {
               <div className="node-element node-title">
                 <b>{props.treeNode.name}</b>
               </div>
-            </div>
-            <div className="node-content-status-line">
-              <div className="node-element node-upload-status">
-                {"UPLOADED: " + (props.treeNode.gid !== undefined)}
+              <div className="node-properties">
+                {props.treeNode.size && (
+                  <div className="node-element node-property">
+                    {"SIZE: " + abbreviateSize(props.treeNode.size)}
+                  </div>
+                )}
               </div>
-              {props.treeNode.size && (
-                <div className="node-element node-last-modified">
-                  {"SIZE: " + abbreviateSize(props.treeNode.size)}
-                </div>
-              )}
+            </div>
+            <div className="node-content-action-line">
+              {location === FileLocation.OnlyRemote &&
+                <ActionButton text="DOWNLOAD" callback={() => { setDownloadFileId(props.treeNode.gid!) }}></ActionButton>}
             </div>
           </div>
-          {uploadProgress !== undefined &&
+          {uploadProgress !== undefined && uploadProgress !== 100 &&
             <div className="node-content-right">
-              <ProgressBar progress={uploadProgress}></ProgressBar>
+              <ProgressBar progress={uploadProgress || 0}></ProgressBar>
             </div>}
         </div>
       </li>

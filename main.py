@@ -44,14 +44,14 @@ if __name__ == "__main__":
         base_gid = get_base_folder_id()
 
         # initiate thread-safe drive service singleton
-        driveService = DriveService(creds)
+        driveService = DriveService(base_gid, creds)
         remote_file_sync_notifications = Queue()
         directory_watcher = DirectoryWatcher(
             base_gid, ROOT_PATHS, notification_queue)
         server = UploaderInfoServer(
             "localhost", 6900, directory_watcher, remote_file_sync_notifications, loop)
         server.start()
-        directory_watcher.process_events()
+        # directory_watcher.process_events()
         loop.run_until_complete(server.server_start)
         loop.run_forever()
     except Exception as e:
