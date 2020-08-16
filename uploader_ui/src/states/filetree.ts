@@ -10,11 +10,6 @@ export const nodesState = atom<{ [key: string]: NodeState }>({
   default: {},
 });
 
-export const remoteNodeState = atom<{ [key: string]: NodeState }>({
-  key: "remoteNodeState",
-  default: {},
-});
-
 export const selectedNodeState = atom({
   key: "selectedNodeState",
   default: "",

@@ -21,7 +21,6 @@ import {
   currentRootState,
   selectedFolderIdState,
   loadingFolderIdState,
-  remoteNodeState,
   downloadFolderIdState
 } from "../../states/filetree";
 import { FileLocation } from "./consts";
@@ -38,11 +37,10 @@ const FileTreeFolder = (props: FileTreeProps) => {
   const [children, setChildren] = useState<FileTreeNodeModel[]>([]);
   const [childrenCount, setChildrenCount] = useState(-1);
   const [currentNodesState, setNodesState] = useRecoilState(nodesState);
-  const [gidNodeState, setGidNodeState] = useRecoilState(remoteNodeState);
   const [selectedNodeId, setSelectedNodeId] = useRecoilState(selectedNodeState);
   const setRootId = useSetRecoilState(currentRootState);
   const setSelectedFolderId = useSetRecoilState(selectedFolderIdState);
-  const [loadingFolderIds, setLoadingFolderIds] = useRecoilState(loadingFolderIdState);
+  const [loadingFolderIds] = useRecoilState(loadingFolderIdState);
   const [parentToChildren] = useRecoilState(parentToChildrenState);
   const [remoteParentToChildren] = useRecoilState(remoteParentToChildrenState);
   const [gidToNode] = useRecoilState(gidToNodeState);
@@ -53,22 +51,14 @@ const FileTreeFolder = (props: FileTreeProps) => {
     event.stopPropagation();
     setSelectedNodeId(() => props.treeNode.id)
     setSelectedFolderId(() => props.treeNode.id)
-    setGidNodeState((oldNodesState) => {
-      if (!props.treeNode.gid) {
-        return oldNodesState
-      }
-
-      const newNodesState = { ...oldNodesState };
-      const newCurrentNodeState = { ...oldNodesState[props.treeNode.gid] };
-      newCurrentNodeState.open = !newCurrentNodeState.open
-      newNodesState[props.treeNode.gid] = newCurrentNodeState;
-      return newNodesState;
-    });
     setNodesState((oldNodesState) => {
       const newNodesState = { ...oldNodesState };
-      const newCurrentNodeState = { ...oldNodesState[props.treeNode.id] };
-      newCurrentNodeState.open = !newCurrentNodeState.open
-      newNodesState[props.treeNode.id] = newCurrentNodeState;
+      const newCurrentNodeState = props.treeNode.gid && props.treeNode.gid in newNodesState ? newNodesState[props.treeNode.gid] : { ...oldNodesState[props.treeNode.id] };
+
+      newNodesState[props.treeNode.id] = { open: !newCurrentNodeState.open };
+      if (props.treeNode.gid && props.treeNode.gid in newNodesState) {
+        newNodesState[props.treeNode.gid] = { open: !newCurrentNodeState.open };
+      }
       return newNodesState;
     });
   };
@@ -79,10 +69,10 @@ const FileTreeFolder = (props: FileTreeProps) => {
     setRootId(props.treeNode.id);
   }
 
+  const isOpen = currentNodesState[props.treeNode.id]?.open || currentNodesState[props.treeNode.gid || ""]?.open;
   const location = getLocation(props.treeNode);
   const background = getBackgroundColor(location);
   const nodeSelected = props.treeNode.id === selectedNodeId ? "node-selected" : "";
-  const isOpen = currentNodesState[props.treeNode.id]?.open || gidNodeState[props.treeNode.gid || ""]?.open;
   const imageUrl = isOpen ? "open-folder.png" : "closed-folder.png";
 
   useEffect(() => {
