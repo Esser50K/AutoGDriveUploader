@@ -62,10 +62,15 @@ class DriveService:
             with open(self.last_remote_scan_file, "r") as last_scan:
                 self.all_items = json.loads(last_scan.read())
 
-    def list_folder_deep(self, folder_gid, notification_queue=Queue(), depth=9999, all_items={}):
-        return self._list_folder_deep(folder_gid, self.last_remote_scan_file, notification_queue, depth, self.all_items)
+    def list_folder_deep(self, folder_gid, notification_queue=Queue(), depth=9999):
+        return self._list_folder_deep(
+            folder_gid, self.last_remote_scan_file, notification_queue, depth, self.all_items)
 
-    def _list_folder_deep(self, folder_gid, filename, notification_queue=Queue(), depth=9999, all_items={}):
+    def list_subfolder_deep(self, folder_gid, notification_queue=Queue(), depth=9999):
+        return self._list_folder_deep(
+            folder_gid, self.last_remote_scan_file, notification_queue, depth, {}, True)
+
+    def _list_folder_deep(self, folder_gid, filename, notification_queue=Queue(), depth=9999, all_items={}, subfolder_only=False):
         if depth == 0:
             return self._write_and_notify(folder_gid, filename, all_items, notification_queue)
 
@@ -87,7 +92,12 @@ class DriveService:
             folder_nodes[item["id"]] = item
             if item["mimeType"] == FOLDER_MIMETYPE:
                 all_items = self._list_folder_deep(
-                    item["id"], filename, notification_queue, depth, all_items)
+                    item["id"], filename, notification_queue, depth, all_items, subfolder_only)
+
+        if subfolder_only:
+            notification_queue.put(
+                RemoteScanNotification(folder_gid, all_items))
+            return deepcopy(all_items)
 
         all_items = {**self.all_items, **all_items}
         previous_children = find_children(folder_gid, all_items)

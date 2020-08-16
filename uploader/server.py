@@ -6,7 +6,7 @@ import platform
 import traceback
 from queue import Queue
 from uploader.notification import *
-from uploader.drive_service import DriveService
+from uploader.drive_service import DriveService, FOLDER_MIMETYPE
 from uploader.watcher import DirectoryWatcher
 from websockets import WebSocketServerProtocol as WS, serve
 from threading import Thread, Lock
@@ -89,13 +89,14 @@ class UploaderInfoServer:
                     if "id" not in cmd.keys():
                         continue
 
-                    to_create_file = self.watcher.prepare_download(
-                        cmd["id"], self.remote_tree_status)
-                    Thread(target=self.download_and_notify,
-                           args=(cmd["id"], to_create_file,)).start()
+                    await self.download_file(cmd["id"])
 
-                    for client in self.full_tree_clients.values():
-                        await client.send(json.dumps({"idx": self.watcher.current_tree_idx, "names": self.watcher.all_tree_names(), "tree": self.watcher.current_tree()}))
+                elif cmd["type"] == "DOWNLOAD_FOLDER":
+                    print("PLAYAAA:", cmd)
+                    if "id" not in cmd.keys():
+                        continue
+                    print("PLAYAAA:", cmd)
+                    await self.download_folder(cmd["id"])
 
                 elif cmd["type"] == "OPEN_FILE":
                     if "id" not in cmd.keys() or str(cmd["id"]) not in self.watcher.current_tree().keys():
@@ -114,9 +115,38 @@ class UploaderInfoServer:
                 print("Error occured responding to command:",
                       e, traceback.format_exc())
 
+    async def download_file(self, file_id):
+        to_create_file = self.watcher.prepare_download(
+            file_id, self.remote_tree_status)
+        Thread(target=self.download_and_notify,
+               args=(file_id, to_create_file,)).start()
+
+        for client in self.full_tree_clients.values():
+            await client.send(json.dumps({"idx": self.watcher.current_tree_idx, "names": self.watcher.all_tree_names(), "tree": self.watcher.current_tree()}))
+
     def download_and_notify(self, id, to_create_file):
         self.watcher.download_file(id, to_create_file)
         self.notification_queue.put(FileCreatedNotification(to_create_file))
+
+    async def download_folder(self, folder_gid):
+        notification_queue = Queue()
+        Thread(target=DriveService().list_subfolder_deep,
+               args=(folder_gid, notification_queue,)).start()
+
+        downloading = set()
+        while True:
+            try:
+                children = notification_queue.get(timeout=10)
+                for gid, child in children.remote_files.items():
+                    if child["mimeType"] == FOLDER_MIMETYPE or gid in downloading:
+                        continue
+
+                    downloading.add(gid)
+                    await self.download_file(gid)
+            except Exception as e:
+                print("Error occurred downloading folder:",
+                      e, traceback.format_exc())
+                return
 
     def get_file_notifications(self):
         while True:

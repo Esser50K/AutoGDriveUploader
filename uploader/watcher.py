@@ -75,3 +75,7 @@ class DirectoryWatcher(Thread):
         event_handler = self.event_handlers[self.current_tree_idx]
         event_handler.download_file(
             file_gid, to_create_file)
+
+    def clean_trees(self):
+        for handler in self.event_handlers:
+            handler.clean_tree()

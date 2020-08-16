@@ -40,6 +40,11 @@ export const downloadFileIdState = atom({
   default: "",
 });
 
+export const downloadFolderIdState = atom({
+  key: "downloadFolderIdState",
+  default: "",
+});
+
 export const currentRootState = atom({
   key: "currentRootState",
   default: "",
