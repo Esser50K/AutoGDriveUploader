@@ -101,8 +101,12 @@ class UploaderInfoServer:
                     if "id" not in cmd.keys() or str(cmd["id"]) not in self.watcher.current_tree().keys():
                         continue
 
-                    filepath = self.watcher.current_tree()[
-                        str(cmd["id"])]["path"]
+                    node = self.watcher.current_tree()[str(cmd["id"])]
+                    filepath = node["path"]
+
+                    if self.watcher.current_tree()[str(cmd["id"])]["folder"]:
+                        filepath += "/" + node["name"]
+
                     if platform.system() == 'Darwin':
                         subprocess.call(('open', filepath))
                     elif platform.system() == 'Windows':
