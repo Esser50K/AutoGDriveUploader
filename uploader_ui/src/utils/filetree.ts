@@ -143,7 +143,7 @@ export const remoteToLocalWithMap = (
 export const abbreviateSize = (value: number) => {
   let newValue = value.toString();
   if (value > 1000) {
-    const suffixes = ["b", "kb", "mb", "gb", "tb"];
+    const suffixes = ["", "k", "m", "g", "t"];
     const suffixNum = Math.floor(("" + value).length / 3);
     let shortValue = 0;
     for (let precision = 2; precision >= 1; precision--) {
@@ -167,5 +167,5 @@ export const abbreviateSize = (value: number) => {
     }
     newValue = shortValString + suffixes[suffixNum];
   }
-  return newValue;
+  return newValue + "b";
 };

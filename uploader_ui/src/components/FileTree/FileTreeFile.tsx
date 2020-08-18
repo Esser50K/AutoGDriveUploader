@@ -7,10 +7,12 @@ import {
   getBackgroundColor,
 } from "../../utils/filetree";
 import { useRecoilState, useSetRecoilState } from "recoil";
-import { selectedNodeState, openFileState, downloadFileIdState } from "../../states/filetree";
+import { selectedNodeState, openFileState, openFolderState, downloadFileIdState } from "../../states/filetree";
 import { iconFiletypeMap, FileLocation } from "./consts";
 import ProgressBar from "../ProgressBar/ProgressBar";
 import ActionButton from "./ActionButton";
+
+const BASE_GDRIVE_FILE_URL = "https://drive.google.com/file/d/"
 
 interface FileTreeProps {
   treeNode: FileTreeNodeModel;
@@ -21,6 +23,7 @@ const FileTreeFile = (props: FileTreeProps) => {
   const [selectedNodeId, setSelectedNodeId] = useRecoilState(selectedNodeState);
   const setDownloadFileId = useSetRecoilState(downloadFileIdState);
   const openFile = useSetRecoilState(openFileState);
+  const openFolder = useSetRecoilState(openFolderState);
 
   const onClick = (event: React.MouseEvent<HTMLLIElement, MouseEvent>) => {
     event.preventDefault();
@@ -73,6 +76,10 @@ const FileTreeFile = (props: FileTreeProps) => {
             <div className="node-content-action-line">
               {location === FileLocation.OnlyRemote &&
                 <ActionButton text="DOWNLOAD" callback={() => { setDownloadFileId(props.treeNode.gid!) }}></ActionButton>}
+              {props.treeNode.gid &&
+                <ActionButton text="OPEN IN DRIVE" callback={() => { window.open(BASE_GDRIVE_FILE_URL + props.treeNode.gid) }}></ActionButton>}
+              {(location === FileLocation.OnlyLocal || location === FileLocation.Both) &&
+                <ActionButton text="SHOW IN FINDER" callback={() => { openFolder(props.treeNode.pid) }}></ActionButton>}
             </div>
           </div>
           {uploadProgress !== undefined && uploadProgress !== 100 && uploadProgress !== 0 &&

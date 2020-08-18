@@ -92,13 +92,12 @@ class UploaderInfoServer:
                     await self.download_file(cmd["id"])
 
                 elif cmd["type"] == "DOWNLOAD_FOLDER":
-                    print("PLAYAAA:", cmd)
                     if "id" not in cmd.keys():
                         continue
-                    print("PLAYAAA:", cmd)
+
                     await self.download_folder(cmd["id"])
 
-                elif cmd["type"] == "OPEN_FILE":
+                elif cmd["type"] == "OPEN_FILE" or cmd["type"] == "SHOW_IN_FINDER":
                     if "id" not in cmd.keys() or str(cmd["id"]) not in self.watcher.current_tree().keys():
                         continue
 
@@ -111,6 +110,7 @@ class UploaderInfoServer:
                         os.startfile(filepath)
                     else:
                         subprocess.call(('xdg-open', filepath))
+
             except Exception as e:
                 print("Error occured responding to command:",
                       e, traceback.format_exc())
