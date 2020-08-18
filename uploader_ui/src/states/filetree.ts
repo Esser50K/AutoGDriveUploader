@@ -20,6 +20,11 @@ export const openFileState = atom({
   default: "",
 });
 
+export const openFolderState = atom({
+  key: "openFolderState",
+  default: "",
+});
+
 export const selectedFolderIdState = atom({
   key: "selectedFolderIdState",
   default: "",

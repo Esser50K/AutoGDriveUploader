@@ -3,13 +3,14 @@ import FileTree from "../components/FileTree/FileTree";
 import "./FileTreePage.css";
 import NavBar from "../components/NavBar/NavBar";
 import { useRecoilState, useSetRecoilState } from "recoil";
-import { selectedSyncFolderState, openFileState, selectedFolderIdState, availableSyncFoldersState, loadingFolderIdState, downloadFileIdState, downloadFolderIdState } from "../states/filetree";
+import { selectedSyncFolderState, openFileState, selectedFolderIdState, availableSyncFoldersState, loadingFolderIdState, downloadFileIdState, downloadFolderIdState, openFolderState } from "../states/filetree";
 
 const commandSocket = new WebSocket("ws://localhost:6900/command");
 
 const FileTreePage = () => {
     const [selectedSyncFolder] = useRecoilState(selectedSyncFolderState);
     const [openFileId, setOpenFileId] = useRecoilState(openFileState);
+    const [openFolderId, setOpenFolderId] = useRecoilState(openFolderState);
     const [selectedFolderId] = useRecoilState(selectedFolderIdState);
     const [availableSyncFolders] = useRecoilState(availableSyncFoldersState);
     const [downloadFileId] = useRecoilState(downloadFileIdState);
@@ -34,6 +35,17 @@ const FileTreePage = () => {
         commandSocket.send(JSON.stringify({ "type": "OPEN_FILE", "id": openFileId }))
         setOpenFileId(() => "")
     }, [openFileId, setOpenFileId])
+
+    // show file/folder in finder on selection
+    useEffect(() => {
+        if (commandSocket.readyState !== commandSocket.OPEN || openFolderId === "") {
+            return
+        }
+
+        commandSocket.send(JSON.stringify({ "type": "SHOW_IN_FINDER", "id": openFolderId }))
+        setOpenFolderId(() => "")
+    }, [openFolderId, setOpenFolderId])
+
 
     // sync remote folder on selection
     useEffect(() => {

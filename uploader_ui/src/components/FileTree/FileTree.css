@@ -90,7 +90,7 @@
 
 .node-title {
   font-size: 15px;
-  max-width: 400px;
+  max-width: 600px;
   text-overflow: ellipsis;
   white-space: nowrap;
   overflow: hidden;

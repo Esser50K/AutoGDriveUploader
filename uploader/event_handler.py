@@ -74,6 +74,7 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
         to_clean = list(
             filter(lambda x: "downloading" in x, self.current_tree.values()))
         for node in to_clean:
+            os.remove(node["path"])
             del self.current_tree[str(node["id"])]
 
     def process_event(self):

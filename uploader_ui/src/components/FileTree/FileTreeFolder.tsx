@@ -21,10 +21,13 @@ import {
   currentRootState,
   selectedFolderIdState,
   loadingFolderIdState,
-  downloadFolderIdState
+  downloadFolderIdState,
+  openFolderState
 } from "../../states/filetree";
 import { FileLocation } from "./consts";
 import ActionButton from "./ActionButton";
+
+const BASE_GDRIVE_FOLDER_URL = "https://drive.google.com/drive/u/3/folders/"
 
 interface FileTreeProps {
   treeNode: FileTreeNodeModel;
@@ -45,6 +48,7 @@ const FileTreeFolder = (props: FileTreeProps) => {
   const [remoteParentToChildren] = useRecoilState(remoteParentToChildrenState);
   const [gidToNode] = useRecoilState(gidToNodeState);
   const setDownloadFolderId = useSetRecoilState(downloadFolderIdState);
+  const openFolder = useSetRecoilState(openFolderState);
 
   const onClick = (event: MouseEvent<HTMLLIElement, globalThis.MouseEvent>) => {
     event.preventDefault();
@@ -137,6 +141,10 @@ const FileTreeFolder = (props: FileTreeProps) => {
             <div className="node-content-action-line">
               {location === FileLocation.OnlyRemote &&
                 <ActionButton text="DOWNLOAD" callback={() => { setDownloadFolderId(props.treeNode.gid!) }}></ActionButton>}
+              {props.treeNode.gid &&
+                <ActionButton text="OPEN IN DRIVE" callback={() => { window.open(BASE_GDRIVE_FOLDER_URL + props.treeNode.gid) }}></ActionButton>}
+              {(location === FileLocation.OnlyLocal || location === FileLocation.Both) &&
+                <ActionButton text="SHOW IN FINDER" callback={() => { openFolder(props.treeNode.id) }}></ActionButton>}
             </div>
           </div>
           <div className="node-content-right">
