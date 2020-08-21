@@ -56,6 +56,7 @@
   font-weight: bold;
   height: 80px;
   border-left: 2px solid var(--baby-blue);
+  border-right: 2px solid var(--baby-blue);
 }
 
 .nav-bar .nav-item .dropdown-container span:hover {
@@ -87,6 +88,7 @@
 
 .dropdown-container .dropdown-item {
   border-top: 2px solid var(--baby-blue);
+  border-bottom: 2px solid var(--baby-blue);
 }
 
 .nav-bar .nav-dropdown .dropdown-title {
@@ -100,4 +102,25 @@
 .nav-bar .nav-dropdown .dropdown-title .dropdown-selected {
   margin-top: 5px;
   font-size: 20px;
+}
+
+.sync-folder-actions {
+  display: flex;
+  flex-direction: column;
+  width: 400px;
+  height: 100%;
+}
+
+.sync-folder-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  font-weight: bold;
+  border-top: 2px solid var(--baby-blue);
+}
+
+.sync-folder-action:hover {
+  background-color: var(--baby-blue);
+  color: var(--soft-black);
 }

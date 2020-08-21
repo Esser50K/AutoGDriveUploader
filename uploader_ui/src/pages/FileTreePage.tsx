@@ -3,7 +3,7 @@ import FileTree from "../components/FileTree/FileTree";
 import "./FileTreePage.css";
 import NavBar from "../components/NavBar/NavBar";
 import { useRecoilState, useSetRecoilState } from "recoil";
-import { selectedSyncFolderState, openFileState, selectedFolderIdState, availableSyncFoldersState, loadingFolderIdState, downloadFileIdState, downloadFolderIdState, openFolderState } from "../states/filetree";
+import { selectedSyncFolderState, openFileState, selectedFolderIdState, availableSyncFoldersState, loadingFolderIdState, downloadFileIdState, downloadFolderIdState, openFolderState, addSyncFolderState, removeSyncFolderState } from "../states/filetree";
 
 const commandSocket = new WebSocket("ws://localhost:6900/command");
 
@@ -15,6 +15,8 @@ const FileTreePage = () => {
     const [availableSyncFolders] = useRecoilState(availableSyncFoldersState);
     const [downloadFileId] = useRecoilState(downloadFileIdState);
     const [downloadFolderId] = useRecoilState(downloadFolderIdState);
+    const [addSyncFolderStatus, addSyncFolder] = useRecoilState(addSyncFolderState);
+    const [removeSyncFolderStatus, removeSyncFolder] = useRecoilState(removeSyncFolderState);
     const setLoadingFolderIds = useSetRecoilState(loadingFolderIdState);
 
     // change sync directories
@@ -23,7 +25,7 @@ const FileTreePage = () => {
             return
         }
 
-        commandSocket.send(JSON.stringify({ "type": "CHANGE_DIR", "tree_idx": selectedSyncFolder }))
+        commandSocket.send(JSON.stringify({ type: "CHANGE_DIR", tree_path: selectedSyncFolder }))
     }, [selectedSyncFolder])
 
     // open file on selection
@@ -32,7 +34,7 @@ const FileTreePage = () => {
             return
         }
 
-        commandSocket.send(JSON.stringify({ "type": "OPEN_FILE", "id": openFileId }))
+        commandSocket.send(JSON.stringify({ type: "OPEN_FILE", id: openFileId }))
         setOpenFileId(() => "")
     }, [openFileId, setOpenFileId])
 
@@ -42,7 +44,7 @@ const FileTreePage = () => {
             return
         }
 
-        commandSocket.send(JSON.stringify({ "type": "SHOW_IN_FINDER", "id": openFolderId }))
+        commandSocket.send(JSON.stringify({ type: "SHOW_IN_FINDER", id: openFolderId }))
         setOpenFolderId(() => "")
     }, [openFolderId, setOpenFolderId])
 
@@ -58,7 +60,7 @@ const FileTreePage = () => {
             return oldLoadingFolderIds;
         })
 
-        commandSocket.send(JSON.stringify({ "type": "SYNC_FOLDER", "id": selectedFolderId }))
+        commandSocket.send(JSON.stringify({ type: "SYNC_FOLDER", id: selectedFolderId }))
     }, [selectedFolderId])
 
     // download remote file on selection
@@ -67,7 +69,7 @@ const FileTreePage = () => {
             return
         }
 
-        commandSocket.send(JSON.stringify({ "type": "DOWNLOAD_FILE", "id": downloadFileId }))
+        commandSocket.send(JSON.stringify({ type: "DOWNLOAD_FILE", id: downloadFileId }))
     }, [downloadFileId])
 
     // download remote folder on selection
@@ -76,8 +78,29 @@ const FileTreePage = () => {
             return
         }
 
-        commandSocket.send(JSON.stringify({ "type": "DOWNLOAD_FOLDER", "id": downloadFolderId }))
+        commandSocket.send(JSON.stringify({ type: "DOWNLOAD_FOLDER", id: downloadFolderId }))
     }, [downloadFolderId])
+
+    // open folder dialog to select new sync folder
+    useEffect(() => {
+        if (commandSocket.readyState !== commandSocket.OPEN || !addSyncFolderStatus) {
+            return
+        }
+
+        commandSocket.send(JSON.stringify({ type: "ADD_SYNC_FOLDER" }))
+        addSyncFolder(false)
+    }, [addSyncFolderStatus, addSyncFolder])
+
+    // remove sync folder
+    useEffect(() => {
+        if (commandSocket.readyState !== commandSocket.OPEN || !removeSyncFolderStatus) {
+            return
+        }
+
+        console.info("HEREE")
+        commandSocket.send(JSON.stringify({ type: "REMOVE_SYNC_FOLDER", folder_path: selectedSyncFolder }))
+        removeSyncFolder(false)
+    }, [removeSyncFolderStatus, removeSyncFolder])
 
     return (
         <div className="app">

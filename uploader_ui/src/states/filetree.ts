@@ -30,6 +30,16 @@ export const selectedFolderIdState = atom({
   default: "",
 });
 
+export const addSyncFolderState = atom({
+  key: "addSyncFolderState",
+  default: false,
+});
+
+export const removeSyncFolderState = atom({
+  key: "removeSyncFolderState",
+  default: false,
+});
+
 export const loadingFolderIdState = atom({
   key: "loadingFoldersIdState",
   default: new Set(),
@@ -72,9 +82,9 @@ export const remoteGidToNodeState = atom<{
   default: {},
 });
 
-export const selectedSyncFolderState = atom<number>({
+export const selectedSyncFolderState = atom<string>({
   key: "selectedSyncFolderState",
-  default: -1
+  default: ""
 })
 
 export const availableSyncFoldersState = atom<string[]>({

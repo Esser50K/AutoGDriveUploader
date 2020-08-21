@@ -51,6 +51,7 @@ const FileTree = () => {
 
   const parseAndApplyLocal = (data: string) => {
     const fullTreeStatus = JSON.parse(data);
+    console.info("GOT:", fullTreeStatus.idx, fullTreeStatus.names);
     const tree = fullTreeStatus.tree;
     setFullTree(tree);
 

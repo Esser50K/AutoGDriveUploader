@@ -5,12 +5,17 @@ import subprocess
 import platform
 import traceback
 from queue import Queue
+from tkinter import filedialog, Tk
 from uploader.notification import *
+from uploader.hashutils import hash_string
+from uploader.utils import read_sync_folders, write_sync_folders
 from uploader.drive_service import DriveService, FOLDER_MIMETYPE
 from uploader.watcher import DirectoryWatcher
 from websockets import WebSocketServerProtocol as WS, serve
 from threading import Thread, Lock
 from time import sleep
+
+root = None
 
 
 class UploaderInfoServer:
@@ -33,7 +38,7 @@ class UploaderInfoServer:
         if uri.endswith("/full"):
             with self.notification_lock:
                 self.full_tree_clients[websocket.remote_address] = websocket
-            await websocket.send(json.dumps({"idx": self.watcher.current_tree_idx, "names": self.watcher.all_tree_names(), "tree": self.watcher.current_tree()}))
+            await websocket.send(json.dumps({"idx": self.watcher.current_selected_tree, "names": self.watcher.root_paths, "tree": self.watcher.current_tree()}))
         elif uri.endswith("/status"):
             with self.notification_lock:
                 self.tree_status_clients[websocket.remote_address] = websocket
@@ -58,14 +63,15 @@ class UploaderInfoServer:
             del self.remote_tree_status_clients[websocket.remote_address]
 
     async def handle_commands(self, websocket: WS):
+        global root
         while not websocket.closed:
             try:
                 command = await websocket.recv()
                 cmd = json.loads(command)
                 if cmd["type"] == "CHANGE_DIR":
-                    self.watcher.set_current_tree(cmd["tree_idx"])
+                    self.watcher.set_current_tree(cmd["tree_path"])
                     for client in self.full_tree_clients.values():
-                        await client.send(json.dumps({"idx": self.watcher.current_tree_idx, "names": self.watcher.all_tree_names(), "tree": self.watcher.current_tree()}))
+                        await client.send(json.dumps({"idx": self.watcher.current_selected_tree, "names": self.watcher.root_paths, "tree": self.watcher.current_tree()}))
                     Thread(target=DriveService().list_folder_deep, args=(
                         self.watcher.base_gid, self.remote_notification_queue, 2,)).start()
                 elif cmd["type"] == "SYNC_FOLDER":
@@ -97,6 +103,70 @@ class UploaderInfoServer:
 
                     await self.download_folder(cmd["id"])
 
+                elif cmd["type"] == "ADD_SYNC_FOLDER":
+                    if root is None:
+                        root = Tk()
+                        root.withdraw()
+                    try:
+                        folder_path = filedialog.askdirectory()
+                        if folder_path == "":
+                            continue
+
+                        sync_folder_id = hash_string(
+                            folder_path.encode("utf-8"))
+                        sync_folders = read_sync_folders()
+
+                        sync_folders[sync_folder_id] = {
+                            "path": folder_path,
+                            "enabled": True
+                        }
+
+                        new_sync_folders = [folder["path"]
+                                            for folder in sync_folders.values() if folder["enabled"]]
+                        self.watcher.update_root_paths(new_sync_folders)
+
+                        write_sync_folders(sync_folders)
+                    except Exception as e:
+                        traceback.format_exc()
+                        print(
+                            "Something went wrong trying to add new sync folder:", e)
+                        continue
+                    finally:
+                        for client in self.full_tree_clients.values():
+                            await client.send(json.dumps({"idx": self.watcher.current_selected_tree, "names": self.watcher.root_paths, "tree": self.watcher.current_tree()}))
+
+                elif cmd["type"] == "REMOVE_SYNC_FOLDER":
+                    if "folder_path" not in cmd.keys():
+                        continue
+
+                    if cmd["folder_path"] not in self.watcher.root_paths:
+                        continue
+
+                    try:
+                        root_path = cmd["folder_path"]
+                        sync_folder_id = hash_string(root_path.encode("utf-8"))
+                        sync_folders = read_sync_folders()
+
+                        if sync_folder_id not in sync_folders.keys():
+                            continue
+
+                        sync_folders[sync_folder_id] = {
+                            "path": root_path,
+                            "enabled": False
+                        }
+
+                        new_sync_folders = [folder["path"]
+                                            for folder in sync_folders.values() if folder["enabled"]]
+                        self.watcher.update_root_paths(new_sync_folders)
+
+                        write_sync_folders(sync_folders)
+                    except Exception as e:
+                        traceback.format_exc()
+                        print("Something went wrong removing sync folder:", e)
+                    finally:
+                        for client in self.full_tree_clients.values():
+                            await client.send(json.dumps({"idx": self.watcher.current_selected_tree, "names": self.watcher.root_paths, "tree": self.watcher.current_tree()}))
+
                 elif cmd["type"] == "OPEN_FILE" or cmd["type"] == "SHOW_IN_FINDER":
                     if "id" not in cmd.keys() or str(cmd["id"]) not in self.watcher.current_tree().keys():
                         continue
@@ -126,7 +196,7 @@ class UploaderInfoServer:
                args=(file_id, to_create_file,)).start()
 
         for client in self.full_tree_clients.values():
-            await client.send(json.dumps({"idx": self.watcher.current_tree_idx, "names": self.watcher.all_tree_names(), "tree": self.watcher.current_tree()}))
+            await client.send(json.dumps({"idx": self.watcher.current_selected_tree, "names": self.watcher.root_paths, "tree": self.watcher.current_tree()}))
 
     def download_and_notify(self, id, to_create_file):
         self.watcher.download_file(id, to_create_file)
@@ -163,7 +233,7 @@ class UploaderInfoServer:
             with self.notification_lock:
                 for client in self.full_tree_clients.values():
                     asyncio.run_coroutine_threadsafe(client.send(
-                        json.dumps({"idx": self.watcher.current_tree_idx, "names": self.watcher.all_tree_names(), "tree": self.watcher.current_tree()})), self.loop)
+                        json.dumps({"idx": self.watcher.current_selected_tree, "names": self.watcher.root_paths, "tree": self.watcher.current_tree()})), self.loop)
 
                 for client in self.tree_status_clients.values():
                     asyncio.run_coroutine_threadsafe(client.send(
@@ -215,6 +285,9 @@ class UploaderInfoServer:
         self.watcher.start()
 
     def stop(self):
+        global root
         self.watcher.stop()
         self.notification_queue.put(None)
         self.file_notification_getter.join()
+        if root:
+            root.destroy()
