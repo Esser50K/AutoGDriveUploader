@@ -62,10 +62,9 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
         # processes queue but debounces the changes since it always goes over the whole tree
         while True:
             try:
-                if self.event_queue.get(timeout=2) is None:
+                if self.event_queue.get(timeout=.5) is None:
                     break
             except:
-                print("processing event")
                 self.process_event()
                 if self.event_queue.get() is None:
                     break

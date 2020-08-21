@@ -3,6 +3,7 @@ import os
 import sys
 import json
 from queue import Queue
+from uploader.utils import read_sync_folders, write_sync_folders
 from uploader.event_handler import DirectoryChangeEventHandler
 from uploader.watcher import DirectoryWatcher
 from uploader.drive_service import DriveService, get_credentials
@@ -30,8 +31,8 @@ def get_base_folder_id():
     return folder_id
 
 
-ROOT_PATHS = ["/Users/esser420/Youtubing",
-              "/Users/esser420/Pictures/GoPro"]
+ROOT_PATHS = [folder["path"]
+              for folder in read_sync_folders().values() if folder["enabled"]]
 
 if __name__ == "__main__":
     try:
