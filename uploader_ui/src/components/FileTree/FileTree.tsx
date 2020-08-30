@@ -51,7 +51,6 @@ const FileTree = () => {
 
   const parseAndApplyLocal = (data: string) => {
     const fullTreeStatus = JSON.parse(data);
-    console.info("GOT:", fullTreeStatus.idx, fullTreeStatus.names);
     const tree = fullTreeStatus.tree;
     setFullTree(tree);
 
@@ -123,7 +122,6 @@ const FileTree = () => {
     const handleUserInput = (e: any) => {
       if (e.ctrlKey && e.key === 'ArrowUp') {
         const currentRoot = fullTree[rootId] || remoteTree[rootId]
-        console.info("ROOT", currentRoot)
         if (!currentRoot) {
           return
         }

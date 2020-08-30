@@ -11,6 +11,11 @@ from uploader.server import UploaderInfoServer
 from time import sleep
 from threading import Thread
 
+# always use script directory as working directory
+abspath = os.path.abspath(__file__)
+dname = os.path.dirname(abspath)
+os.chdir(dname)
+
 BASE_FOLDER = "Esser50kMacBackup"
 BASE_FOLDER_GID_FILE = "base_id.json"
 
