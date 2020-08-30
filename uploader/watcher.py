@@ -48,9 +48,7 @@ class DirectoryWatcher(Thread):
         self.root_paths = list(root_paths)
 
         # remove event handlers that are not watching any new root paths
-        print("SEEING IF I CAN REMOVE A BROTHA")
         for path in removed_root_paths:
-            print("REMOVING WATCHER FOR:", path)
             self.event_handlers[path].stop()
             self.event_handlers[path].join()
             del self.event_handlers[path]
@@ -58,15 +56,12 @@ class DirectoryWatcher(Thread):
             if path == self.current_selected_tree:
                 self.current_selected_tree = self.root_paths[0] if len(
                     self.root_paths) > 0 else ""
-            print("REMOVED WATCHER FOR:", path)
 
         # add new event handlers
         for path in added_root_paths:
-            print("ADDING WATCHER FOR:", path)
             self.event_handlers[path] = DirectoryChangeEventHandler(
                 self.base_gid, path, self.notification_queue)
             self.event_handlers[path].start()
-            print("ADDED WATCHER FOR:", path)
 
     def current_tree(self):
         return self.event_handlers[self.current_selected_tree].current_tree
