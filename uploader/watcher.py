@@ -63,6 +63,9 @@ class DirectoryWatcher(Thread):
                 self.base_gid, path, self.notification_queue)
             self.event_handlers[path].start()
 
+        if self.current_selected_tree not in self.root_paths and len(self.root_paths) > 0:
+            self.current_selected_tree = self.root_paths[0]
+
     def current_tree(self):
         return self.event_handlers[self.current_selected_tree].current_tree
 
