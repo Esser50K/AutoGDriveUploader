@@ -10,6 +10,7 @@ from threading import Thread, Lock
 from watchdog.events import FileSystemEventHandler
 from uploader.drive_service import DriveService
 from uploader.notification import *
+from googleapiclient.errors import HttpError
 from pprint import pprint
 
 FILES_BLACKLIST = set([".DS_Store", "__Sync__"])
@@ -73,7 +74,10 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
         to_clean = list(
             filter(lambda x: "downloading" in x, self.current_tree.values()))
         for node in to_clean:
-            os.remove(node["path"])
+            try:
+                os.remove(node["path"])
+            except:
+                pass
             del self.current_tree[str(node["id"])]
 
     def process_event(self):
@@ -287,7 +291,7 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
         deleted_files = set(filter(
             lambda x: x not in dowloading_files, self.current_tree.keys() - new_tree.keys()))
         new_folders = set([f for f in new_files if new_tree[f]["folder"]] +
-                          [f for f in self.current_tree.keys() if self.current_tree[f]["folder"] and "gid" not in self.current_tree[f].keys()])
+                          [f for f in self.current_tree.keys() if f in new_tree.keys() and self.current_tree[f]["folder"] and "gid" not in self.current_tree[f].keys()])
         new_files = set(
             filter(lambda x: "gid" not in x, new_files - new_folders))
         still_old = self.current_tree.keys() & new_tree.keys()
@@ -363,13 +367,15 @@ class DirectoryChangeEventHandler(FileSystemEventHandler, Thread):
             folder_doc["name"], current_tree[folder_pid]["name"], current_tree[folder_pid]["gid"]))
         result = self.service.upload_folder(
             folder_doc["name"], current_tree[folder_pid]["gid"])
+
         return result["id"]
 
     def upload_folders(self, new_folder_ids, new_tree):
         for folder_id in new_folder_ids:
+            print("trying upload for %s" % new_tree[folder_id]["name"])
             folder_doc = new_tree[folder_id]
-            print("trying upload for %s" % folder_doc["name"])
             folder_doc["gid"] = self._upload_folders(folder_doc, new_tree)
+
             new_tree[folder_id] = folder_doc
         return new_tree
 
