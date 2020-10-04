@@ -27,3 +27,5 @@ The GUI will be accessible through the browser so you know what the current uplo
 ## Youtube
 
 I've shared some of the dev eperience on this in a funny video on youtube: https://youtu.be/eYi1dGhbx_U
+
+And part 2 is out with the Web UI Development with ReactJS: https://youtu.be/CD39Xf0AruU
